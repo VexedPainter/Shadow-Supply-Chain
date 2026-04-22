@@ -1,0 +1,11 @@
+id,date,equipment,technician,issue,parts_used,resolution
+ML-001,2024-03-08,HVAC Compressor Unit 3,John Miller,Compressor failure — emergency repair,HVAC compressor repair parts,Replaced faulty valve and seals
+ML-002,2024-03-10,Pump Station A,Sarah Chen,Seal leakage on primary pump,O-rings and gaskets set,"Replaced seals, tested under pressure"
+ML-003,2024-03-14,Conveyor Belt B3,John Miller,Motor burnout — line stopped,Replacement motor 2HP,"Installed new motor, belt re-tensioned"
+ML-004,2024-03-16,Main Air Compressor,John Miller,Drive belt snapped during weekend shift,Drive belt and tensioner,Emergency belt replacement from auto parts store
+ML-005,2024-03-17,Coolant System Line 2,Tom Brown,Coolant line crack — leaking on floor,PVC pipe fittings,"Temporary pipe repair, scheduled full replacement"
+ML-006,2024-03-17,Hydraulic Press HP-02,Sarah Chen,Hydraulic line burst,Hydraulic fittings,Emergency fitting replacement
+ML-007,2024-03-20,PLC Cabinet Line 4,Alex Rivera,PLC module failure — line 4 down,PLC module Siemens S7-1200,"Module swapped, program restored from backup"
+ML-008,2024-03-22,Pump Station B,John Miller,Planned shutdown — full pump overhaul,"Pump rebuild kit, bearings, seals",Complete rebuild during planned outage
+ML-009,2024-03-24,Pressure System PS-01,Alex Rivera,Pressure relief valve malfunction,Specialty pressure relief valve,"Valve replaced, system re-certified"
+ML-010,2024-03-28,Hydraulic System Main,John Miller,Catastrophic hydraulic failure — full rebuild,"Complete hydraulic kit, hoses, valves","Full system rebuild, 48hr downtime"

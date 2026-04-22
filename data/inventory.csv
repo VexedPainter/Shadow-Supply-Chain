@@ -1,0 +1,17 @@
+id,name,sku,quantity,unit_price,category,reorder_level,location
+INV001,Hydro-Pump XL,HP-XL-001,15,1200.0,Pumps,5,Warehouse A
+INV002,Steel Bolt M10x40,SB-M10-40,2500,0.45,Fasteners,500,Warehouse B
+INV003,Control Board Rev3,CB-R3-001,8,450.0,Electronics,3,Warehouse A
+INV004,HVAC Filter 20x25,HF-2025,45,32.0,HVAC,20,Warehouse C
+INV005,Bearing 6205-2RS,BR-6205,120,12.5,Bearings,30,Warehouse B
+INV006,Safety Goggles Pro,SG-PRO,200,18.0,Safety,50,Warehouse C
+INV007,Hydraulic Hose 1/2in,HH-050,30,45.0,Hydraulics,10,Warehouse A
+INV008,Welding Rod E6013,WR-6013,500,3.2,Welding,100,Warehouse B
+INV009,PLC Module S7-1200,PLC-S7,4,850.0,Electronics,2,Warehouse A
+INV010,Conveyor Belt 6ft,CB-6FT,10,280.0,Conveyors,3,Warehouse A
+INV011,Gasket Set Industrial,GS-IND,85,22.0,Seals & Gaskets,25,Warehouse B
+INV012,Motor 2HP 3-Phase,MT-2HP,6,680.0,Motors,2,Warehouse A
+INV013,Pressure Gauge 0-100PSI,PG-100,35,28.0,Instrumentation,10,Warehouse C
+INV014,Lubricant ISO 68,LB-68,60,15.0,Chemicals,20,Warehouse B
+INV015,Steel Plate 4x8 Sheet,SP-4X8,25,180.0,Raw Materials,8,Warehouse D
+INV016,V-Belt A68,VB-A68,40,14.0,Power Transmission,15,Warehouse B

@@ -1,0 +1,19 @@
+id,vendor_id,vendor_name,item,amount,quantity,date,status,department
+PO-001,V001,Industrial Parts Express,Hydro-Pump XL x2,2400.0,2,2024-03-01,Delivered,Maintenance
+PO-002,V002,Fastener World,Steel Bolt M10x40 (Box/500),225.0,500,2024-03-03,Delivered,Production
+PO-003,V007,TechnoElec Solutions,Control Board Rev3 x3,1350.0,3,2024-03-05,Delivered,Engineering
+PO-004,V004,Global Logistics Corp,Freight Shipment Q1,4200.0,1,2024-03-06,Delivered,Logistics
+PO-005,V005,Precision Tools Inc,Torque Wrench Set,680.0,2,2024-03-08,Delivered,Maintenance
+PO-006,V008,SafetyFirst Equipment,Safety Goggles Pro (Box/50),900.0,50,2024-03-10,Delivered,HSE
+PO-007,V013,Pacific Bearing Co,Bearing 6205-2RS (Pack/20),250.0,20,2024-03-11,Delivered,Maintenance
+PO-008,V009,HydroFlow Systems,Hydraulic Hose Assembly,2100.0,5,2024-03-12,Delivered,Maintenance
+PO-009,V010,WeldPro Supplies,Welding Rod E6013 (50kg),480.0,50,2024-03-14,Delivered,Fabrication
+PO-010,V011,AirTech HVAC,HVAC Filter Set (20x25),640.0,20,2024-03-15,Delivered,Facilities
+PO-011,V014,National Electric Supply,PLC Module S7-1200 x2,1700.0,2,2024-03-17,Delivered,Engineering
+PO-012,V016,ChemGuard Industrial,Industrial Degreaser 20L,320.0,4,2024-03-18,Delivered,Maintenance
+PO-013,V017,SteelCraft Manufacturing,Steel Plate 4x8 (10 sheets),1800.0,10,2024-03-19,Delivered,Fabrication
+PO-014,V019,PumpMaster International,Centrifugal Pump CP-200,4200.0,1,2024-03-20,In Transit,Maintenance
+PO-015,V020,GasketPro Ltd,Gasket Set Industrial (Box),440.0,20,2024-03-21,In Transit,Maintenance
+PO-016,V002,Fastener World,Hex Nut M10 (Box/1000),180.0,1000,2024-03-22,Pending,Production
+PO-017,V005,Precision Tools Inc,Digital Caliper Set,520.0,4,2024-03-23,Pending,QC
+PO-018,V008,SafetyFirst Equipment,Hard Hat Type II (25pc),625.0,25,2024-03-24,Pending,HSE

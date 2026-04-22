@@ -1,0 +1,44 @@
+id,date,vendor,amount,description,payment_type,card_holder,department
+TXN-1001,2024-03-02,Industrial Parts Express,2400.0,Hydro-Pump XL x2 per PO-001,Invoice,System,Maintenance
+TXN-1002,2024-03-04,Fastener World,225.0,Steel bolts M10 box 500pc,Invoice,System,Production
+TXN-1003,2024-03-06,TechnoElec Solutions,1350.0,Control boards Rev3 x3,Invoice,System,Engineering
+TXN-1004,2024-03-07,Global Logistics Corp,4200.0,Q1 freight charges,Invoice,System,Logistics
+TXN-1005,2024-03-09,Precision Tools Inc,680.0,Torque wrench set x2,Invoice,System,Maintenance
+TXN-1006,2024-03-11,SafetyFirst Equipment,900.0,Safety goggles bulk order,Invoice,System,HSE
+TXN-1007,2024-03-12,Pacific Bearing Co,250.0,Bearings 6205-2RS pack 20,Invoice,System,Maintenance
+TXN-1008,2024-03-13,HydroFlow Systems,2100.0,Hydraulic hose assembly x5,Invoice,System,Maintenance
+TXN-1009,2024-03-15,WeldPro Supplies,480.0,Welding rod E6013 50kg,Invoice,System,Fabrication
+TXN-1010,2024-03-16,AirTech HVAC,640.0,HVAC filters 20x25 set,Invoice,System,Facilities
+TXN-1011,2024-03-18,National Electric Supply,1700.0,PLC module S7-1200 x2,Invoice,System,Engineering
+TXN-1012,2024-03-19,ChemGuard Industrial,320.0,Industrial degreaser 20L x4,Invoice,System,Maintenance
+TXN-1013,2024-03-20,SteelCraft Manufacturing,1800.0,Steel plate 4x8 10 sheets,Invoice,System,Fabrication
+TXN-2001,2024-03-08,Emergency Hardware Supply,850.0,Emergency HVAC compressor repair parts — valve and seals,Corporate Card,John Miller,Maintenance
+TXN-2002,2024-03-10,QuickFix Parts Shop,175.0,Assorted O-rings and gaskets for pump station A,Corporate Card,Sarah Chen,Production
+TXN-2003,2024-03-14,Emergency Hardware Supply,1250.0,Replacement motor 2HP for conveyor belt B3,Corporate Card,John Miller,Production
+TXN-2004,2024-03-16,Bob's Hardware Store,67.5,Workshop cleaning supplies and rags,Expense Claim,Dave Wilson,Facilities
+TXN-2005,2024-03-17,QuickFix Parts Shop,320.0,Hydraulic fittings emergency order,Corporate Card,Sarah Chen,Maintenance
+TXN-2006,2024-03-19,Industrial Parts Express,89.0,Electrical tape and cable ties,Expense Claim,Mike Johnson,Maintenance
+TXN-2007,2024-03-20,TechnoElec Solutions,2200.0,PLC module replacement rush order — line 4 down,Corporate Card,Alex Rivera,Engineering
+TXN-2008,2024-03-16,Midnight Auto Parts,445.0,Emergency drive belt and tensioner for main compressor,Corporate Card,John Miller,Maintenance
+TXN-2009,2024-03-17,Bob's Hardware Store,125.0,PVC pipes and fittings for coolant line repair,Expense Claim,Tom Brown,Maintenance
+TXN-2010,2024-03-23,Joe's Corner Shop,42.0,WD-40 and misc lubricants night shift,Expense Claim,Dave Wilson,Maintenance
+TXN-2011,2024-03-22,Emergency Hardware Supply,4500.0,Bulk emergency pump rebuild kit for planned shutdown,Corporate Card,John Miller,Maintenance
+TXN-2012,2024-03-24,Random Online Seller,890.0,Specialty pressure relief valve — 3 day shipping,Corporate Card,Alex Rivera,Engineering
+TXN-2013,2024-03-25,QuickFix Parts Shop,560.0,Bearing replacement set for mixer unit,Corporate Card,Sarah Chen,Production
+TXN-2014,2024-03-11,Bob's Hardware Store,34.0,Duct tape and zip ties,Expense Claim,Tom Brown,Production
+TXN-2015,2024-03-13,Joe's Corner Shop,28.5,Spray paint and markers,Expense Claim,Dave Wilson,Facilities
+TXN-2016,2024-03-21,Midnight Auto Parts,210.0,Alternator for forklift #3,Corporate Card,Mike Johnson,Maintenance
+TXN-2017,2024-03-26,Emergency Hardware Supply,1800.0,Control valve assembly for boiler room,Corporate Card,John Miller,Maintenance
+TXN-2018,2024-03-27,Random Online Seller,155.0,Replacement thermocouple sensor,Corporate Card,Alex Rivera,Engineering
+TXN-2019,2024-03-28,QuickFix Parts Shop,95.0,Pipe thread sealant and teflon tape bulk,Expense Claim,Sarah Chen,Maintenance
+TXN-2020,2024-03-15,Midnight Auto Parts,780.0,Starter motor and solenoid for generator backup,Corporate Card,John Miller,Maintenance
+TXN-2021,2024-03-18,Emergency Hardware Supply,340.0,Fire extinguisher refills emergency,Corporate Card,Tom Brown,HSE
+TXN-2022,2024-03-22,Bob's Hardware Store,78.0,Extension cords and power strips,Expense Claim,Dave Wilson,Facilities
+TXN-2023,2024-03-26,Joe's Corner Shop,55.0,First aid kit refill supplies,Expense Claim,Tom Brown,HSE
+TXN-1014,2024-03-21,PumpMaster International,4200.0,Centrifugal pump CP-200,Invoice,System,Maintenance
+TXN-1015,2024-03-22,GasketPro Ltd,440.0,Gasket set industrial box,Invoice,System,Maintenance
+TXN-1016,2024-03-23,Fastener World,180.0,Hex nut M10 box 1000pc,Invoice,System,Production
+TXN-1017,2024-03-24,Precision Tools Inc,520.0,Digital caliper set x4,Invoice,System,QC
+TXN-1018,2024-03-25,SafetyFirst Equipment,625.0,Hard hat type II 25pc,Invoice,System,HSE
+TXN-2024,2024-03-28,Emergency Hardware Supply,8750.0,Complete hydraulic system rebuild — unplanned outage,Corporate Card,John Miller,Maintenance
+TXN-2025,2024-03-29,Random Online Seller,3200.0,Custom fabricated mounting bracket express delivery,Corporate Card,Alex Rivera,Engineering

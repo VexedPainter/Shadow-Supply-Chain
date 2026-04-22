@@ -1,0 +1,57 @@
+# ═══════════════════════════════════════════════
+# Shadow Supply Chain — .gitignore
+# ═══════════════════════════════════════════════
+
+# ─── Environment & Secrets ─────────────────────
+.env
+*.env
+!.env.example
+
+# ─── Python ────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# ─── Virtual Environment ──────────────────────
+Lib/
+Include/
+Scripts/
+share/
+pyvenv.cfg
+pip-selfcheck.json
+
+# ─── Database ──────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ─── Logs ──────────────────────────────────────
+*.log
+server.log
+final_server.log
+
+# ─── Generated Exports ────────────────────────
+static/downloads/*.pdf
+static/downloads/*.csv
+static/downloads/*.xlsx
+test_download.pdf
+
+# ─── Test Files ────────────────────────────────
+test_*.py
+debug_*.py
+verify_*.py
+
+# ─── IDE / Editor ─────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Misc ─────────────────────────────────────
+FIXES_APPLIED.md
+migrate_db.py

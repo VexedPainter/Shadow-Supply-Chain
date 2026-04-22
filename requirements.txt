@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+sqlalchemy
+pandas
+scikit-learn
+python-multipart
+fpdf2
+websockets
+openpyxl
+matplotlib
+groq
+cohere
+httpx

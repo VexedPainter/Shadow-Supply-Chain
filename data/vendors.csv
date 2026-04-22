@@ -1,0 +1,22 @@
+id,name,category,risk_level,approved,avg_order
+V001,Industrial Parts Express,MRO Supplies,Low,True,1200
+V002,Fastener World,Fasteners,Low,True,350
+V003,Emergency Hardware Supply,General Hardware,High,False,900
+V004,Global Logistics Corp,Logistics,Low,True,2500
+V005,Precision Tools Inc,Tooling,Medium,True,750
+V006,QuickFix Parts Shop,General Hardware,High,False,200
+V007,TechnoElec Solutions,Electronics,Medium,True,1800
+V008,SafetyFirst Equipment,Safety,Low,True,600
+V009,HydroFlow Systems,Hydraulics,Low,True,2200
+V010,WeldPro Supplies,Welding,Low,True,480
+V011,AirTech HVAC,HVAC,Medium,True,1400
+V012,Bob's Hardware Store,General Hardware,High,False,120
+V013,Pacific Bearing Co,Bearings,Low,True,900
+V014,National Electric Supply,Electronics,Low,True,1600
+V015,Midnight Auto Parts,General Hardware,High,False,300
+V016,ChemGuard Industrial,Chemicals,Medium,True,550
+V017,SteelCraft Manufacturing,Raw Materials,Low,True,3500
+V018,Joe's Corner Shop,General Hardware,High,False,80
+V019,PumpMaster International,Pumps,Low,True,4200
+V020,GasketPro Ltd,Seals & Gaskets,Medium,True,350
+V021,Random Online Seller,Unknown,High,False,150
