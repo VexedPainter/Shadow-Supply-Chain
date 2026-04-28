@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 sqlalchemy
 pandas
 scikit-learn
@@ -11,3 +11,4 @@ matplotlib
 groq
 cohere
 httpx
+gunicorn

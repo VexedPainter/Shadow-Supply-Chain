@@ -16,8 +16,10 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 # ─── API Configuration ─────────────────────────────
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
-COHERE_API_KEY = os.environ.get("COHERE_API_KEY", "")
+# Keys are injected as environment variables by Cloud Run (via Secret Manager).
+# Locally: copy .env.example → .env and fill in your keys.
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+COHERE_API_KEY = os.environ.get("COHERE_API_KEY")
 
 # ─── Initialize Clients ────────────────────────────
 groq_client = None
