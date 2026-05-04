@@ -43,7 +43,8 @@ from ai_module import shadow_ai
 from ai_copilot import (
     chat_with_groq, analyze_shadow_with_groq,
     summarize_risks_with_cohere, classify_risk_with_cohere,
-    generate_vendor_insight_with_cohere, check_ai_health
+    generate_vendor_insight_with_cohere, check_ai_health,
+    semantic_part_match_with_cohere
 )
 import traceback
 import logging
@@ -110,6 +111,13 @@ class FeedbackRequest(BaseModel):
     category: Optional[str] = None
     revised_score: Optional[float] = None
     notes: Optional[str] = None
+
+class EmergencyPurchaseRequest(BaseModel):
+    part_name: str
+    sku: str
+    quantity: int
+    department: str
+    employee: str
 
 
 class LoginRequest(BaseModel):
@@ -714,6 +722,59 @@ def api_explain(shadow_id: int, db: Session = Depends(get_db)):
 def api_recommendations(user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     recs = get_recommendations(db)
     return recs[:10]
+
+# ─── ZERO-TRUST FULFILLMENT GATE (ZTFG) ─────────────────
+import hashlib
+import time
+
+@app.post("/api/emergency-purchase/verify")
+def verify_emergency_purchase(req: EmergencyPurchaseRequest, user: str = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Algorithmic Intercept for Emergency Purchases.
+    Verifies inventory and semantic substitutes before allowing external purchase.
+    """
+    # 1. Check exact SKU
+    exact_match = db.query(Inventory).filter(Inventory.sku == req.sku).first()
+    if exact_match and exact_match.quantity >= req.quantity:
+        # Generate internal transfer
+        transfer_id = f"ITO-{int(time.time())}-{random.randint(100, 999)}"
+        _log_event(db, "ZTFG_INTERCEPT", req.sku, f"Intercepted ePO for {req.part_name}. Directed to internal transfer {transfer_id}.")
+        return {
+            "status": "blocked",
+            "reason": f"Exact item in stock. Please use internal transfer {transfer_id}.",
+            "action": "internal_transfer",
+            "transfer_id": transfer_id
+        }
+
+    # 2. Check semantic substitutes using AI Copilot
+    all_inventory = db.query(Inventory).filter(Inventory.quantity >= req.quantity).all()
+    if all_inventory:
+        sub_result = semantic_part_match_with_cohere(req.part_name, req.sku, all_inventory)
+        if sub_result.get("match_found") and sub_result.get("confidence", 0) > 0.8:
+            matched_sku = sub_result.get("matched_sku")
+            matched_item = db.query(Inventory).filter(Inventory.sku == matched_sku).first()
+            if matched_item:
+                _log_event(db, "ZTFG_SUBSTITUTE", req.sku, f"Suggested substitute {matched_sku} for {req.part_name}")
+                return {
+                    "status": "blocked",
+                    "reason": f"Compatible substitute available in stock: {matched_item.name} ({matched_sku}).",
+                    "action": "suggest_substitute",
+                    "substitute_sku": matched_sku,
+                    "substitute_name": matched_item.name,
+                    "ai_reasoning": sub_result.get("reason")
+                }
+
+    # 3. Generate Stock-Out Token if genuinely out of stock
+    token_string = f"{req.sku}-{req.quantity}-{time.time()}-SECRET"
+    token = hashlib.sha256(token_string.encode()).hexdigest()[:16]
+    _log_event(db, "ZTFG_APPROVED", req.sku, f"Authorized ePO for {req.part_name} - stock depleted. Token: {token}")
+    
+    return {
+        "status": "approved",
+        "action": "proceed_to_vendor",
+        "stock_out_token": token,
+        "message": "Inventory check confirmed zero stock. You may proceed with emergency purchase."
+    }
 
 
 # ─── HUMAN FEEDBACK LOOP ────────────────────────────────

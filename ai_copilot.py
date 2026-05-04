@@ -308,6 +308,52 @@ Provide actionable recommendations for the supply chain team."""
         logger.error(f"[Cohere] Vendor insight error: {e}")
         return {"insight": str(e), "status": "error"}
 
+def semantic_part_match_with_cohere(requested_part: str, requested_sku: str, inventory_items: list) -> dict:
+    """
+    Use Cohere to semantically match a requested part against available inventory.
+    Returns the best match if confidence is high enough.
+    """
+    client = _init_cohere()
+    if not client or not inventory_items:
+        return {"match_found": False, "status": "error", "reason": "No client or inventory"}
+
+    # Format inventory for the prompt
+    inv_text = "Available Inventory:\n"
+    for item in inventory_items:
+        inv_text += f"- ID: {item.id} | SKU: {item.sku} | Name: {item.name} | Category: {item.category} | Qty: {item.quantity}\n"
+
+    try:
+        response = client.chat(
+            model="command-a-03-2025",
+            messages=[{
+                "role": "system",
+                "content": "You are an expert supply chain engineer. Your task is to identify if any available inventory item is a functionally equivalent substitute for the requested part. Respond with ONLY a JSON object: {\"match_found\": true/false, \"matched_sku\": \"SKU or null\", \"confidence\": 0.0-1.0, \"reason\": \"Brief explanation\"}"
+            }, {
+                "role": "user",
+                "content": f"Requested Part: {requested_part} (SKU: {requested_sku})\n\n{inv_text}"
+            }],
+            temperature=0.1,
+            response_format={"type": "json_object"}
+        )
+
+        try:
+            result = json.loads(response.message.content[0].text)
+            return {
+                "match_found": result.get("match_found", False),
+                "matched_sku": result.get("matched_sku"),
+                "confidence": result.get("confidence", 0.0),
+                "reason": result.get("reason", ""),
+                "status": "success"
+            }
+        except Exception as e:
+            logger.error(f"[Cohere] JSON parse error: {e}")
+            return {"match_found": False, "status": "error", "reason": "Invalid JSON response"}
+            
+    except Exception as e:
+        logger.error(f"[Cohere] Semantic match error: {e}")
+        return {"match_found": False, "status": "error", "reason": str(e)}
+
+
 
 # ═══════════════════════════════════════════════
 # HEALTH CHECK
