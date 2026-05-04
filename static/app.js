@@ -1727,7 +1727,63 @@ async function aiAnalyzeShadow(shadowId) {
             'assistant'
         );
     } catch (e) {
-        removeTypingIndicator();
         addAIMessage(`⚠️ Analysis failed: ${e.message}`, 'assistant');
     }
 }
+
+// ══════════════════════════════════════════════
+//  ZERO-TRUST FULFILLMENT GATE (ZTFG)
+// ══════════════════════════════════════════════
+
+function openZTFGModal() {
+    const modal = document.getElementById('ztfgModal');
+    if (modal) modal.classList.add('active');
+    document.getElementById('ztfgResult').innerHTML = '';
+}
+
+function closeZTFGModal() {
+    const modal = document.getElementById('ztfgModal');
+    if (modal) modal.classList.remove('active');
+}
+
+async function submitZTFG() {
+    const part_name = document.getElementById('ztfgPartName').value;
+    const sku = document.getElementById('ztfgSku').value;
+    const quantity = parseInt(document.getElementById('ztfgQuantity').value) || 1;
+    const department = document.getElementById('ztfgDepartment').value;
+    const employee = document.getElementById('ztfgEmployee').value;
+    const resultDiv = document.getElementById('ztfgResult');
+    
+    if (!part_name || !sku) {
+        resultDiv.innerHTML = '<span style="color:var(--accent-red)">Part Name and SKU are required.</span>';
+        return;
+    }
+    
+    resultDiv.innerHTML = '<div style="color:var(--text-muted); display:flex; align-items:center; gap:8px;"><div class="ai-typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div> <span>Verifying inventory and semantic substitutes...</span></div>';
+
+    try {
+        const res = await fetch('/api/emergency-purchase/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ part_name, sku, quantity, department, employee })
+        });
+        const data = await res.json();
+        
+        if (data.status === 'blocked') {
+            resultDiv.innerHTML = `<div style="padding: 12px; background: rgba(255, 191, 0, 0.1); border-left: 3px solid var(--accent-amber); border-radius: 4px;">
+                <div style="font-weight: 600; color: var(--accent-amber); margin-bottom: 4px;">🛑 Intercepted</div>
+                <div style="color: var(--text-base);">${data.reason}</div>
+                ${data.substitute_name ? `<div style="margin-top: 8px; font-size: 12px; color: var(--brand-primary-light);"><strong>Suggested Substitute:</strong> ${data.substitute_name} (SKU: ${data.substitute_sku})</div>` : ''}
+            </div>`;
+        } else {
+            resultDiv.innerHTML = `<div style="padding: 12px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid var(--accent-emerald); border-radius: 4px;">
+                <div style="font-weight: 600; color: var(--accent-emerald); margin-bottom: 4px;">✅ Approved</div>
+                <div style="color: var(--text-base);">${data.message}</div>
+                <div style="margin-top: 8px; font-family: monospace; font-size: 11px; color: var(--accent-emerald); opacity: 0.8;">Token: ${data.stock_out_token}</div>
+            </div>`;
+        }
+    } catch (e) {
+        resultDiv.innerHTML = `<span style="color:var(--accent-red)">Error: ${e.message}</span>`;
+    }
+}
+

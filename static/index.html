@@ -406,6 +406,7 @@
                     <p>Approved purchase orders & shadow-resolved POs</p>
                 </div>
                 <div class="header-actions">
+                    <button class="btn btn-sm" onclick="openZTFGModal()" style="background-color: var(--accent-amber); color: #000; border: none; font-weight: 600;">⚡ Emergency Purchase</button>
                     <button class="btn btn-primary btn-sm" onclick="downloadPO('all')">📄 Download All POs</button>
                     <button class="btn btn-outline btn-sm" onclick="exportCSV('procurement')">⬇ Export</button>
                 </div>
@@ -542,6 +543,45 @@
         <div class="modal-actions">
             <button class="btn btn-ghost" onclick="closeFeedbackModal()">Cancel</button>
             <button class="btn btn-primary" onclick="submitFeedback()">Submit Feedback</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ ZTFG Modal ═══ -->
+<div class="modal-overlay" id="ztfgModal">
+    <div class="modal" style="max-width: 450px;">
+        <h3>⚡ Emergency Purchase (ZTFG)</h3>
+        <p class="text-muted small" style="margin-bottom: 15px;">Algorithmic Intercept for Emergency Purchases</p>
+        <div style="display: grid; gap: 10px; margin-bottom: 15px;">
+            <div>
+                <label>Part Name</label>
+                <input type="text" id="ztfgPartName" placeholder="e.g. Hydro-Pump XL">
+            </div>
+            <div>
+                <label>SKU</label>
+                <input type="text" id="ztfgSku" placeholder="e.g. HP-XL-001">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label>Quantity</label>
+                    <input type="number" id="ztfgQuantity" value="1" min="1">
+                </div>
+                <div>
+                    <label>Department</label>
+                    <input type="text" id="ztfgDepartment" value="Maintenance">
+                </div>
+            </div>
+            <div>
+                <label>Employee</label>
+                <input type="text" id="ztfgEmployee" value="Test User">
+            </div>
+        </div>
+        
+        <div id="ztfgResult" style="min-height: 40px; font-size: 13px;"></div>
+
+        <div class="modal-actions" style="margin-top: 20px;">
+            <button class="btn btn-ghost" onclick="closeZTFGModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="submitZTFG()" style="background: var(--accent-amber); color: #000;">Verify & Purchase</button>
         </div>
     </div>
 </div>
