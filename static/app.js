@@ -1,13 +1,13 @@
 /**
- * ShadowSync — Kinetic Ledger Frontend v3.0
+ * ShadowSync - Kinetic Ledger Frontend v3.0
 
  * Omni-Category Supply Chain Intelligence Dashboard
  * Handles: WebSocket, Charts, CRUD, PDF/CSV export, feedback, side-panel
  */
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  GLOBAL STATE
-// ══════════════════════════════════════════════
+// ==============================================
 const state = {
     simulatorRunning: true,
     dataMode: 'synthetic',
@@ -22,9 +22,9 @@ const state = {
     lastStats: null,
 };
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  INITIALIZATION
-// ══════════════════════════════════════════════
+// ==============================================
 document.addEventListener('DOMContentLoaded', () => {
     initCharts();
     connectWebSocket();
@@ -57,9 +57,9 @@ async function logout() {
     }
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  TAB NAVIGATION
-// ══════════════════════════════════════════════
+// ==============================================
 function switchTab(tabName) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -68,7 +68,7 @@ function switchTab(tabName) {
     if (tab) tab.classList.add('active');
 
     const navItems = document.querySelectorAll('.nav-item');
-    const tabIndex = ['overview', 'priority', 'shadows', 'transactions', 'procurement', 'vendors', 'inventory', 'audit'];
+    const tabIndex = ['overview', 'priority', 'shadows', 'transactions', 'procurement', 'vendors', 'inventory', 'preventive', 'audit'];
     const idx = tabIndex.indexOf(tabName);
     if (idx >= 0 && navItems[idx]) navItems[idx].classList.add('active');
 
@@ -80,9 +80,9 @@ function switchTab(tabName) {
     }
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  WEBSOCKET
-// ══════════════════════════════════════════════
+// ==============================================
 function connectWebSocket() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${location.host}/ws`);
@@ -119,7 +119,7 @@ function handleWSMessage(data) {
         updateStats(data.data);
     } else if (data.type === 'new_shadow') {
         const s = data.data;
-        addFeedEvent('<span class="material-icons-outlined" style="font-size:16px;color:var(--accent-red)">gpp_maybe</span>', `Integrity Alert: <strong>${s.vendor}</strong> — $${Number(s.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+        addFeedEvent('<span class="material-icons-outlined" style="font-size:16px;color:var(--accent-red)">gpp_maybe</span>', `Integrity Alert: <strong>${s.vendor}</strong> - $${Number(s.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
 
         fetchShadows();
         fetchStats();
@@ -127,7 +127,7 @@ function handleWSMessage(data) {
         const msg = typeof data.data === 'string' ? data.data : (data.data?.message || 'System alert');
         addFeedEvent('<span class="material-icons-outlined" style="font-size:16px;color:var(--accent-amber)">warning_amber</span>', msg);
     } else if (data.type === 'new_transaction') {
-        addFeedEvent('<span class="material-icons-outlined" style="font-size:16px;color:var(--brand-primary-light)">receipt_long</span>', `Transaction: <strong>${data.data.vendor || 'Unknown'}</strong> — $${Number(data.data.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+        addFeedEvent('<span class="material-icons-outlined" style="font-size:16px;color:var(--brand-primary-light)">receipt_long</span>', `Transaction: <strong>${data.data.vendor || 'Unknown'}</strong> - $${Number(data.data.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
     } else if (data.type === 'connection_info') {
         const el = document.getElementById('clientCount');
         if (el) el.textContent = `${data.data.clients} connected`;
@@ -148,9 +148,9 @@ function updateLiveBadge(live) {
     if (label) { label.textContent = live && state.simulatorRunning ? 'LIVE' : 'PAUSED'; }
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  SIMULATOR TOGGLE
-// ══════════════════════════════════════════════
+// ==============================================
 async function toggleSimulator() {
     try {
         const action = state.simulatorRunning ? 'stop' : 'start';
@@ -167,9 +167,9 @@ async function toggleSimulator() {
     }
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  DATA MODE TOGGLE
-// ══════════════════════════════════════════════
+// ==============================================
 async function setDataMode(mode) {
     state.dataMode = mode;
     const items = document.querySelectorAll('#modeToggle .toggle-item');
@@ -202,9 +202,9 @@ async function setDataMode(mode) {
     }
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  STATS
-// ══════════════════════════════════════════════
+// ==============================================
 async function fetchStats() {
     try {
         const res = await fetch('/api/stats');
@@ -218,7 +218,7 @@ function updateStats(data) {
     const exposure = data.total_exposure ?? data.exposure ?? 0;
     const shadowRate = data.shadow_rate ?? 0;
     const dq = data.detection_quality || data.avg_risk_score || 'High';
-    const invHealth = data.inventory_health || data.pending_actions || '—';
+    const invHealth = data.inventory_health || data.pending_actions || '-';
 
     animateValue('stat-exposure', `$${Number(exposure).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
     animateValue('stat-shadow-rate', `${(Number(shadowRate) * 100).toFixed(1)}%`);
@@ -254,9 +254,9 @@ function animateValue(elementId, targetText) {
     setTimeout(() => { el.style.transform = 'scale(1)'; }, 300);
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  CHARTS
-// ══════════════════════════════════════════════
+// ==============================================
 const chartColors = {
     navy: 'rgba(0, 35, 75, 0.8)',
     navyBg: 'rgba(0, 35, 75, 0.08)',
@@ -433,9 +433,9 @@ function updateChartsFromData(shadows, transactions) {
     }
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  LIVE FEED
-// ══════════════════════════════════════════════
+// ==============================================
 function addFeedEvent(icon, text) {
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -465,9 +465,9 @@ function addFeedEvent(icon, text) {
     if (counter) counter.textContent = `${Math.min(state.feedEvents.length, 30)} events`;
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  SHADOW DETECTIONS
-// ══════════════════════════════════════════════
+// ==============================================
 let allShadowsCache = [];
 
 async function fetchShadows() {
@@ -524,9 +524,9 @@ function renderShadowTable(shadows) {
         `;
 
         return `<tr>
-            <td>${s.date || '—'}</td>
-            <td><span class="text-truncate">${s.vendor || '—'}</span></td>
-            <td><span class="text-truncate" style="max-width:200px">${s.description || '—'}</span></td>
+            <td>${s.date || '-'}</td>
+            <td><span class="text-truncate">${s.vendor || '-'}</span></td>
+            <td><span class="text-truncate" style="max-width:200px">${s.description || '-'}</span></td>
             <td class="amount">$${Number(s.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
             <td>${riskMarkup}</td>
             <td>${confMarkup}</td>
@@ -539,7 +539,7 @@ function renderShadowTable(shadows) {
                         <button class="btn btn-xs" style="background:var(--bg-card);border:1px solid rgba(255,255,255,0.1);" onclick="openDecisionPanel(${s.id})" title="Review details">Review</button>
                         <button class="btn btn-xs btn-ghost" style="color:var(--text-muted); padding:0 6px;" onclick="dismissShadow(${s.id})" title="Dismiss Record">Reject</button>
                     </div>
-                ` : `<span style="font-size:10px;color:var(--text-subtle)">${s.resolved_po_id || '—'}</span>`}
+                ` : `<span style="font-size:10px;color:var(--text-subtle)">${s.resolved_po_id || '-'}</span>`}
             </td>
         </tr>`;
     }).join('');
@@ -554,9 +554,9 @@ function filterShadows(val) {
     renderShadowTable(allShadowsCache);
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  TRANSACTIONS
-// ══════════════════════════════════════════════
+// ==============================================
 async function fetchTransactions() {
     try {
         const res = await fetch('/api/transactions');
@@ -598,12 +598,12 @@ function renderTransactionTable(txns) {
 
         return `<tr>
             <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-subtle)">${t.id}</td>
-            <td>${t.date || '—'}</td>
-            <td>${t.vendor || '—'}</td>
-            <td><span class="text-truncate" style="max-width:200px">${t.description || '—'}</span></td>
+            <td>${t.date || '-'}</td>
+            <td>${t.vendor || '-'}</td>
+            <td><span class="text-truncate" style="max-width:200px">${t.description || '-'}</span></td>
             <td class="amount">$${Number(t.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-            <td>${t.department || '—'}</td>
-            <td style="font-size:11px">${t.payment_type || '—'}</td>
+            <td>${t.department || '-'}</td>
+            <td style="font-size:11px">${t.payment_type || '-'}</td>
             <td>${statusBadge}</td>
         </tr>`;
     }).join('');
@@ -614,9 +614,9 @@ function filterTransactions(val) {
     renderTransactionTable(allTxnsCache);
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  PRIORITY QUEUE ENGINE
-// ══════════════════════════════════════════════
+// ==============================================
 async function fetchPriorityQueue() {
     try {
         const res = await fetch('/api/priority-queue?limit=20');
@@ -660,19 +660,19 @@ function renderTrends(data) {
     const vendorBreakdown = data.shadow_by_vendor || {};
     const topVendor = Object.keys(vendorBreakdown).sort((a,b) => vendorBreakdown[b] - vendorBreakdown[a])[0];
     const topVendorCount = topVendor ? vendorBreakdown[topVendor] : 0;
-    elTopVendor.textContent = topVendor ? `${topVendor} (${topVendorCount} items)` : '—';
+    elTopVendor.textContent = topVendor ? `${topVendor} (${topVendorCount} items)` : '-';
 
     // Top department
     const deptBreakdown = data.shadow_by_department || {};
     const topDept = Object.keys(deptBreakdown).sort((a,b) => deptBreakdown[b] - deptBreakdown[a])[0];
     const topDeptCount = topDept ? deptBreakdown[topDept] : 0;
-    elTopDept.textContent = topDept ? `${topDept} (${topDeptCount} items)` : '—';
+    elTopDept.textContent = topDept ? `${topDept} (${topDeptCount} items)` : '-';
 
     // Generate insight text
     if (changePct > 20) {
         elInsight.textContent = `Shadow activity increased ${changePct}% compared to last week. Immediate review recommended.`;
     } else if (changePct < -20) {
-        elInsight.textContent = `Shadow procurement decreased ${Math.abs(changePct)}% — controls are working effectively.`;
+        elInsight.textContent = `Shadow procurement decreased ${Math.abs(changePct)}% - controls are working effectively.`;
     } else {
         elInsight.textContent = `Shadow activity is stable (${changePct}% change). Continue monitoring top vendors and departments.`;
     }
@@ -720,9 +720,9 @@ function renderPriorityTable(items) {
 
         return `<tr>
             <td><span class="badge badge-${priorityClass}">${item.priority_label || 'Low'}</span></td>
-            <td>${item.date || '—'}</td>
-            <td><span class="text-truncate">${item.vendor || '—'}</span></td>
-            <td><span class="text-truncate" style="max-width:200px">${item.description || '—'}</span></td>
+            <td>${item.date || '-'}</td>
+            <td><span class="text-truncate">${item.vendor || '-'}</span></td>
+            <td><span class="text-truncate" style="max-width:200px">${item.description || '-'}</span></td>
             <td class="amount">$${Number(item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
             <td>${riskMarkup}</td>
             <td>${priorityScoreMarkup}</td>
@@ -739,9 +739,9 @@ function renderPriorityTable(items) {
     }).join('');
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  URGENT ACTIONS PANEL
-// ══════════════════════════════════════════════
+// ==============================================
 function renderUrgentActions(items) {
     const container = document.getElementById('urgent-actions-list');
     if (!container) return;
@@ -751,7 +751,7 @@ function renderUrgentActions(items) {
         // Fall back to top 5 regardless of label
         const top5 = items.slice(0, 5);
         if (!top5.length) {
-            container.innerHTML = '<div class="text-muted small text-center" style="padding: 20px;">No urgent actions at this time — all clear ✓</div>';
+            container.innerHTML = '<div class="text-muted small text-center" style="padding: 20px;">No urgent actions at this time - all clear ✓</div>';
             return;
         }
         container.innerHTML = top5.map(item => {
@@ -829,9 +829,9 @@ async function takeAction(shadowId, actionType, notes = '') {
     }
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  ROOT CAUSE ANALYSIS
-// ══════════════════════════════════════════════
+// ==============================================
 async function fetchRootCause() {
     try {
         const res = await fetch('/api/root-cause');
@@ -876,7 +876,7 @@ function renderRootCauseSummary(data) {
                 ${data.vendor_breakdown.slice(0, 5).map(v => `
                     <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px;">
                         <span style="color: var(--text-base);">${v.vendor}</span>
-                        <span style="color: var(--text-muted);">${v.count} items — $${Number(v.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                        <span style="color: var(--text-muted);">${v.count} items - $${Number(v.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
                     </div>
                 `).join('')}
             </div>
@@ -914,7 +914,7 @@ function showHistoryModal(data) {
     panel.style.cssText = 'background:var(--bg-panel-solid);border-radius:var(--radius-lg);max-width:600px;width:90%;max-height:80vh;overflow-y:auto;border:1px solid var(--border-medium);';
     panel.innerHTML = `
         <div style="padding:20px;border-bottom:1px solid var(--border-subtle);">
-            <h3 style="font-size:16px;margin:0;">Transaction History — Shadow #${data.shadow_id}</h3>
+            <h3 style="font-size:16px;margin:0;">Transaction History - Shadow #${data.shadow_id}</h3>
             <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Current Status: <strong>${data.status}</strong> | Risk Score: <strong>${data.original_risk}</strong></div>
         </div>
         <div style="padding:20px;">
@@ -923,7 +923,7 @@ function showHistoryModal(data) {
                 ${data.actions.map(a => `
                     <div style="padding:8px;margin-bottom:6px;background:var(--bg-card);border-radius:var(--radius-sm);border-left:3px solid var(--brand-primary);">
                         <div style="font-size:12px;font-weight:600;">${a.type.replace('_', ' ').toUpperCase()}</div>
-                        <div style="font-size:10px;color:var(--text-muted);">${a.timestamp} — by ${a.user}</div>
+                        <div style="font-size:10px;color:var(--text-muted);">${a.timestamp} - by ${a.user}</div>
                         ${a.notes ? `<div style="font-size:11px;color:var(--text-subtle);margin-top:2px;">${a.notes}</div>` : ''}
                     </div>
                 `).join('')}
@@ -974,9 +974,9 @@ async function downloadPriorityQueue() {
     }
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  PROCUREMENT
-// ══════════════════════════════════════════════
+// ==============================================
 async function fetchProcurement() {
     try {
         const res = await fetch('/api/procurement');
@@ -996,21 +996,21 @@ function renderProcurementTable(pos) {
 
         return `<tr>
             <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--brand-secondary)">${p.id}</td>
-            <td>${p.date || '—'}</td>
-            <td>${p.vendor_name || '—'}</td>
-            <td><span class="text-truncate">${p.item || '—'}</span></td>
+            <td>${p.date || '-'}</td>
+            <td>${p.vendor_name || '-'}</td>
+            <td><span class="text-truncate">${p.item || '-'}</span></td>
             <td class="amount">$${Number(p.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
             <td>${p.quantity || 1}</td>
-            <td><span class="badge badge-${statusClass}">${p.status || '—'}</span></td>
+            <td><span class="badge badge-${statusClass}">${p.status || '-'}</span></td>
             <td style="font-size:11px;color:var(--text-subtle)">${p.source || 'Manual'}</td>
             <td><button class="btn btn-xs btn-download" onclick="downloadPO('${p.id}')">📄 PDF</button></td>
         </tr>`;
     }).join('');
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  VENDORS
-// ══════════════════════════════════════════════
+// ==============================================
 async function fetchVendors() {
     try {
         const res = await fetch('/api/vendors');
@@ -1030,8 +1030,8 @@ function renderVendorTable(vendors) {
         const trustColor = trust > 70 ? 'var(--accent-emerald)' : trust > 40 ? 'var(--accent-amber)' : 'var(--accent-red)';
 
         return `<tr>
-            <td><strong>${v.name || '—'}</strong></td>
-            <td style="font-size:12px">${v.category || '—'}</td>
+            <td><strong>${v.name || '-'}</strong></td>
+            <td style="font-size:12px">${v.category || '-'}</td>
             <td><span class="badge badge-${riskClass}">${v.risk_level}</span></td>
             <td>
                 <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${trustColor}">${trust.toFixed(0)}%</span>
@@ -1090,9 +1090,9 @@ function renderOpsInsights(vendors) {
     `;
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  INVENTORY
-// ══════════════════════════════════════════════
+// ==============================================
 async function fetchInventory() {
     try {
         const res = await fetch('/api/inventory');
@@ -1124,11 +1124,11 @@ function renderInventoryGrid(items) {
 
         return `<div class="card inv-card ${isLow ? 'low-stock' : ''}">
             <div class="flex-between mb-5">
-                <strong style="font-size:14px">${item.name || '—'}</strong>
+                <strong style="font-size:14px">${item.name || '-'}</strong>
                 <span class="badge ${isLow ? 'badge-low-stock' : 'badge-in-stock'}">${isLow ? 'Low Stock' : 'In Stock'}</span>
             </div>
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
-                SKU: ${item.sku || '—'} · ${item.category || 'General'} · ${item.location || '—'}
+                SKU: ${item.sku || '-'} · ${item.category || 'General'} · ${item.location || '-'}
             </div>
             <div class="flex-between" style="margin-bottom:6px">
                 <span style="font-size:11px;color:var(--text-subtle)">Qty: <strong class="${isLow ? 'text-red' : 'text-emerald'}">${item.quantity}</strong> / Reorder: ${item.reorder_level || 1}</span>
@@ -1141,9 +1141,9 @@ function renderInventoryGrid(items) {
     }).join('');
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  RECOMMENDATIONS
-// ══════════════════════════════════════════════
+// ==============================================
 async function fetchRecommendations() {
     try {
         const res = await fetch('/api/recommendations');
@@ -1178,9 +1178,9 @@ function renderRecommendations(recs) {
     }).join('');
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  AUDIT LOG
-// ══════════════════════════════════════════════
+// ==============================================
 async function fetchAuditLog() {
     try {
         const res = await fetch('/api/audit');
@@ -1202,18 +1202,18 @@ function renderAuditTable(logs) {
             : actType.includes('mode') ? 'act-mode' : '';
 
         return `<tr>
-            <td style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-subtle)">${log.timestamp || '—'}</td>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-subtle)">${log.timestamp || '-'}</td>
             <td style="font-size:12px">${log.user || 'System'}</td>
-            <td><span class="act-badge ${actClass}">${log.action || '—'}</span></td>
-            <td style="font-size:12px">${log.target || '—'}</td>
-            <td style="font-size:11px;color:var(--text-muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${log.details || '—'}</td>
+            <td><span class="act-badge ${actClass}">${log.action || '-'}</span></td>
+            <td style="font-size:12px">${log.target || '-'}</td>
+            <td style="font-size:11px;color:var(--text-muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${log.details || '-'}</td>
         </tr>`;
     }).join('');
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  ACTIONS: RESOLVE / DISMISS
-// ══════════════════════════════════════════════
+// ==============================================
 async function resolveShadow(id) {
     try {
         const res = await fetch(`/api/resolve/${id}`, { method: 'POST' });
@@ -1246,9 +1246,9 @@ async function dismissShadow(id) {
     }
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  DECISION SUPPORT PANEL
-// ══════════════════════════════════════════════
+// ==============================================
 async function openDecisionPanel(shadowId) {
     const panel = document.getElementById('decisionPanel');
     const content = document.getElementById('decisionContent');
@@ -1321,9 +1321,9 @@ function closeDecisionPanel() {
     document.getElementById('decisionPanel').classList.remove('show');
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  FEEDBACK MODAL
-// ══════════════════════════════════════════════
+// ==============================================
 function openFeedbackModal(shadowId) {
     document.getElementById('feedbackShadowId').value = shadowId;
     document.getElementById('feedbackType').value = 'confirm';
@@ -1355,7 +1355,7 @@ async function submitFeedback() {
         const data = await res.json();
 
         if (data.status === 'success' || data.feedback_applied) {
-            showToast('✅ Feedback submitted — AI recalibrated', 'success');
+            showToast('✅ Feedback submitted - AI recalibrated', 'success');
             addFeedEvent('🧠', `Human feedback on Shadow #${shadowId}: ${fbType}`);
             closeFeedbackModal();
             fetchAllData();
@@ -1367,14 +1367,14 @@ async function submitFeedback() {
     }
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  DOWNLOADS: PDF & CSV
-// ══════════════════════════════════════════════
+// ==============================================
 // Removed redundant downloadPO definition since it is defined below at line 1416
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  EXPORTS & REPORTING (Stable Blob Engine)
-// ══════════════════════════════════════════════
+// ==============================================
 
 /**
  * Robust helper for file downloads with verification and filename preservation.
@@ -1510,9 +1510,9 @@ async function fetchTrends() {
     }
 }
 
-// ══════════════════════════════════════════════
+// ==============================================
 //  AI COPILOT (Groq + Cohere Integration)
-// ══════════════════════════════════════════════
+// ==============================================
 
 const aiState = {
     isOpen: false,
@@ -1628,7 +1628,7 @@ async function sendAIMessage() {
 
         if (!res.ok) {
             const errorText = await res.text();
-            addAIMessage(`⚠️ Error: ${res.status} — ${errorText}`, 'assistant');
+            addAIMessage(`⚠️ Error: ${res.status} - ${errorText}`, 'assistant');
         } else {
             const data = await res.json();
             const response = data.response || 'No response received.';
@@ -1667,8 +1667,8 @@ async function checkAIHealth() {
 
         addAIMessage(
             `**AI Provider Status**\n\n` +
-            `${groqIcon} **Groq** (llama-3.3-70b): ${groqStatus}${data.groq?.error ? ' — ' + data.groq.error : ''}\n` +
-            `${cohereIcon} **Cohere** (command-r-plus): ${cohereStatus}${data.cohere?.error ? ' — ' + data.cohere.error : ''}\n\n` +
+            `${groqIcon} **Groq** (llama-3.3-70b): ${groqStatus}${data.groq?.error ? ' - ' + data.groq.error : ''}\n` +
+            `${cohereIcon} **Cohere** (command-r-plus): ${cohereStatus}${data.cohere?.error ? ' - ' + data.cohere.error : ''}\n\n` +
             `${groqStatus === 'connected' && cohereStatus === 'connected' ? '🟢 All systems operational!' : '🟡 Some providers may be unavailable.'}`,
             'assistant'
         );
@@ -1723,67 +1723,743 @@ async function aiAnalyzeShadow(shadowId) {
 
         const data = await res.json();
         addAIMessage(
-            `**🧠 Deep Analysis — Shadow #${shadowId}** (Groq)\n\n${data.response || 'No analysis available.'}`,
+            `**🧠 Deep Analysis - Shadow #${shadowId}** (Groq)\n\n${data.response || 'No analysis available.'}`,
             'assistant'
         );
     } catch (e) {
+        removeTypingIndicator();
         addAIMessage(`⚠️ Analysis failed: ${e.message}`, 'assistant');
     }
 }
 
-// ══════════════════════════════════════════════
-//  ZERO-TRUST FULFILLMENT GATE (ZTFG)
-// ══════════════════════════════════════════════
+// ==============================================
+//  PREVENTIVE INTELLIGENCE LAYER
+// ==============================================================
 
-function openZTFGModal() {
-    const modal = document.getElementById('ztfgModal');
-    if (modal) modal.classList.add('active');
-    document.getElementById('ztfgResult').innerHTML = '';
+// Holds current decision data for logging
+let _currentDecision = null;
+
+// ── Quick search from suggestion buttons ─────────────────────
+function quickSearch(partName) {
+    const input = document.getElementById('preventive-search-input');
+    if (input) {
+        input.value = partName;
+        runPreventiveCheck();
+    }
 }
 
-function closeZTFGModal() {
-    const modal = document.getElementById('ztfgModal');
-    if (modal) modal.classList.remove('active');
-}
+// ── Main preventive check runner ─────────────────────────────
+async function runPreventiveCheck() {
+    const input  = document.getElementById('preventive-search-input');
+    const btn    = document.getElementById('preventive-search-btn');
+    const partName = (input?.value || '').trim();
 
-async function submitZTFG() {
-    const part_name = document.getElementById('ztfgPartName').value;
-    const sku = document.getElementById('ztfgSku').value;
-    const quantity = parseInt(document.getElementById('ztfgQuantity').value) || 1;
-    const department = document.getElementById('ztfgDepartment').value;
-    const employee = document.getElementById('ztfgEmployee').value;
-    const resultDiv = document.getElementById('ztfgResult');
-    
-    if (!part_name || !sku) {
-        resultDiv.innerHTML = '<span style="color:var(--accent-red)">Part Name and SKU are required.</span>';
+    if (!partName) {
+        showToast('Please enter a part name to search', 'error');
         return;
     }
-    
-    resultDiv.innerHTML = '<div style="color:var(--text-muted); display:flex; align-items:center; gap:8px;"><div class="ai-typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div> <span>Verifying inventory and semantic substitutes...</span></div>';
+
+    // Set loading state
+    if (btn) { btn.textContent = '= Checking...'; btn.disabled = true; }
 
     try {
-        const res = await fetch('/api/emergency-purchase/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ part_name, sku, quantity, department, employee })
-        });
+        const res = await fetch(`/api/preventive/check?part_name=${encodeURIComponent(partName)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        
-        if (data.status === 'blocked') {
-            resultDiv.innerHTML = `<div style="padding: 12px; background: rgba(255, 191, 0, 0.1); border-left: 3px solid var(--accent-amber); border-radius: 4px;">
-                <div style="font-weight: 600; color: var(--accent-amber); margin-bottom: 4px;">🛑 Intercepted</div>
-                <div style="color: var(--text-base);">${data.reason}</div>
-                ${data.substitute_name ? `<div style="margin-top: 8px; font-size: 12px; color: var(--brand-primary-light);"><strong>Suggested Substitute:</strong> ${data.substitute_name} (SKU: ${data.substitute_sku})</div>` : ''}
-            </div>`;
-        } else {
-            resultDiv.innerHTML = `<div style="padding: 12px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid var(--accent-emerald); border-radius: 4px;">
-                <div style="font-weight: 600; color: var(--accent-emerald); margin-bottom: 4px;">✅ Approved</div>
-                <div style="color: var(--text-base);">${data.message}</div>
-                <div style="margin-top: 8px; font-family: monospace; font-size: 11px; color: var(--accent-emerald); opacity: 0.8;">Token: ${data.stock_out_token}</div>
-            </div>`;
-        }
+
+        _currentDecision = data;
+
+        // Show results container
+        const resultsEl = document.getElementById('preventive-results');
+        if (resultsEl) resultsEl.style.display = 'block';
+
+        // Hide any previous logged message
+        const loggedMsg = document.getElementById('decision-logged-msg');
+        if (loggedMsg) loggedMsg.style.display = 'none';
+
+        // Render all sections
+        renderAvailabilityCard(data);
+        renderConfidenceCard(data);
+        renderRetrievalCard(data);
+        renderDecisionPanel(data);
+        renderConfidenceBreakdown(data);
+        renderAlternatives(data.alternatives || []);
+        renderAllMatches(data);
+
     } catch (e) {
-        resultDiv.innerHTML = `<span style="color:var(--accent-red)">Error: ${e.message}</span>`;
+        console.error('[PREVENTIVE] Check failed:', e);
+        showToast('Preventive check failed - please retry', 'error');
+    } finally {
+        if (btn) { btn.textContent = '🔍 Check Inventory'; btn.disabled = false; }
     }
 }
 
+// ── Availability Card ─────────────────────────────────────────
+function renderAvailabilityCard(data) {
+    const qty      = document.getElementById('avail-qty');
+    const loc      = document.getElementById('avail-location');
+    const sku      = document.getElementById('avail-sku');
+    const icon     = document.getElementById('avail-icon');
+    const card     = document.getElementById('card-availability');
+
+    if (!data.found || !data.retrieval) {
+        if (qty)  qty.textContent = 'Not Found';
+        if (loc)  loc.textContent = 'Location: -';
+        if (sku)  sku.textContent = 'SKU: -';
+        if (icon) icon.textContent = '❌';
+        if (card) card.style.borderTop = '3px solid #ef4444';
+        return;
+    }
+
+    const inStock = data.retrieval.in_stock;
+    if (qty)  qty.textContent  = inStock ? `${data.quantity_available} units` : 'Out of Stock';
+    if (loc)  loc.textContent  = `Location: ${data.retrieval.warehouse_location || '-'}`;
+    if (sku)  sku.textContent  = `SKU: ${data.item_sku || '-'}`;
+    if (icon) icon.textContent = inStock ? '📦' : '❌';
+    if (card) card.style.borderTop = `3px solid ${inStock ? '#22c55e' : '#ef4444'}`;
+}
+
+// ── Confidence Card with Animated Ring ───────────────────────
+function renderConfidenceCard(data) {
+    const scoreEl    = document.getElementById('conf-score');
+    const labelEl    = document.getElementById('conf-label');
+    const verifiedEl = document.getElementById('conf-verified');
+    const ringFill   = document.getElementById('confidence-ring-fill');
+    const card       = document.getElementById('card-confidence');
+
+    if (!data.confidence) {
+        if (scoreEl) scoreEl.textContent = 'N/A';
+        if (labelEl) labelEl.textContent = 'No data available';
+        return;
+    }
+
+    const conf  = data.confidence;
+    const score = conf.confidence_score || 0;
+    const color = conf.confidence_color || '#22c55e';
+
+    if (scoreEl)    scoreEl.textContent  = `${score.toFixed(0)}%`;
+    if (labelEl)    labelEl.innerHTML    = `<span style="color:${color}; font-weight:700;">${conf.confidence_label || '-'}</span> Confidence`;
+    if (verifiedEl) verifiedEl.textContent = `Last Verified: ${conf.last_verified || 'Unknown'}`;
+    if (card)       card.style.borderTop = `3px solid ${color}`;
+
+    // Animate ring (circumference of r=22 circle = 2π×22 ≈ 138.2)
+    if (ringFill) {
+        const circumference = 138.2;
+        const offset = circumference - (score / 100) * circumference;
+        ringFill.style.strokeDashoffset = offset;
+        ringFill.style.stroke = color;
+    }
+}
+
+// ── Retrieval Time Card ───────────────────────────────────────
+function renderRetrievalCard(data) {
+    const timeEl   = document.getElementById('retrieval-time');
+    const locEl    = document.getElementById('retrieval-loc');
+    const labelEl  = document.getElementById('retrieval-label');
+    const iconEl   = document.getElementById('retrieval-icon');
+    const card     = document.getElementById('card-retrieval');
+
+    if (!data.retrieval) {
+        if (timeEl)  timeEl.textContent = '-';
+        if (locEl)   locEl.textContent  = 'Location: -';
+        if (labelEl) labelEl.textContent = '-';
+        return;
+    }
+
+    const r = data.retrieval;
+    if (!r.in_stock) {
+        if (timeEl)  timeEl.textContent  = 'N/A';
+        if (locEl)   locEl.textContent   = 'Item not in stock';
+        if (labelEl) labelEl.textContent = 'Cannot retrieve';
+        if (iconEl)  iconEl.textContent  = '🚫';
+        if (card)    card.style.borderTop = '3px solid #ef4444';
+        return;
+    }
+
+    if (timeEl)  timeEl.innerHTML  = `<span style="color:${r.time_color}">${r.estimated_minutes} min</span>`;
+    if (locEl)   locEl.textContent = `Location: ${r.warehouse_location || '-'}`;
+    if (labelEl) labelEl.innerHTML = `<span style="color:${r.time_color}; font-weight:700;">${r.time_label}</span> - ~${r.distance_km} km away`;
+    if (iconEl)  iconEl.textContent = r.time_label === 'Fast' ? '🏃' : r.time_label === 'Moderate' ? '🚶' : '🐢';
+    if (card)    card.style.borderTop = `3px solid ${r.time_color}`;
+}
+
+// ── Emergency Decision Panel ──────────────────────────────────
+function renderDecisionPanel(data) {
+    const card      = document.getElementById('decision-card');
+    const iconEl    = document.getElementById('decision-icon-main');
+    const textEl    = document.getElementById('decision-text');
+    const reasonEl  = document.getElementById('decision-reason');
+    const timeEl    = document.getElementById('decision-timestamp');
+
+    const color  = data.decision_color || '#f59e0b';
+    const icon   = data.decision_icon || '⚠️';
+    const text   = data.decision || '-';
+    const reason = data.reason || '-';
+
+    if (card) {
+        card.style.background   = `${color}14`;
+        card.style.borderColor  = color;
+        card.style.color        = color;
+    }
+    if (iconEl)   iconEl.textContent  = icon;
+    if (textEl)   textEl.textContent  = text;
+    if (reasonEl) { reasonEl.textContent = reason; reasonEl.style.color = 'var(--text-muted)'; }
+    if (timeEl)   timeEl.textContent  = data.timestamp || '-';
+
+    // Adjust action button emphasis based on decision
+    const btnInternal  = document.getElementById('btn-use-internal');
+    const btnProcure   = document.getElementById('btn-proceed-purchase');
+    const isInternal   = text.toLowerCase().includes('internal stock');
+    const isProcurement = text.toLowerCase().includes('procurement');
+
+    if (btnInternal && btnProcure) {
+        btnInternal.style.opacity  = isInternal ? '1' : '0.6';
+        btnProcure.style.opacity   = isProcurement ? '1' : '0.6';
+    }
+}
+
+// ── Confidence Breakdown Bars ─────────────────────────────────
+function renderConfidenceBreakdown(data) {
+    const container = document.getElementById('confidence-breakdown');
+    if (!container) return;
+
+    if (!data.confidence) {
+        container.innerHTML = '<div class="text-muted small">No confidence data for this search</div>';
+        return;
+    }
+
+    const bd  = data.confidence.breakdown || {};
+    const total = data.confidence.confidence_score || 0;
+    const color = data.confidence.confidence_color || '#22c55e';
+
+    const rows = [
+        { label: 'Recency (35%)',      value: bd.recency || 0,      max: 35 },
+        { label: 'Stability (25%)',    value: bd.stability || 0,    max: 25 },
+        { label: 'Accuracy (25%)',     value: bd.accuracy || 0,     max: 25 },
+        { label: 'Verification (15%)', value: bd.verification || 0, max: 15 },
+    ];
+
+    container.innerHTML = `
+        <div style="margin-bottom: 16px; text-align: center;">
+            <div style="font-size: 36px; font-weight: 800; color: ${color};">${total.toFixed(0)}%</div>
+            <div style="font-size: 12px; color: var(--text-muted);">Composite Confidence Score</div>
+        </div>
+        <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 10px; letter-spacing: 0.06em;">Score Components</div>
+        ${rows.map(r => `
+            <div style="margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px;">
+                    <span style="color: var(--text-base);">${r.label}</span>
+                    <span style="color: ${color}; font-weight: 700;">${r.value.toFixed(1)} / ${r.max}</span>
+                </div>
+                <div style="height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden;">
+                    <div style="height: 100%; width: ${(r.value / r.max) * 100}%; background: ${color}; border-radius: 2px; transition: width 0.8s ease;"></div>
+                </div>
+            </div>
+        `).join('')}
+        ${data.confidence.hours_since_update < 999 ? `
+        <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-subtle); font-size: 11px; color: var(--text-subtle);">
+            = Last updated ${data.confidence.hours_since_update.toFixed(1)} hours ago
+        </div>` : ''}
+    `;
+}
+
+// ── Smart Alternatives ────────────────────────────────────────
+function renderAlternatives(alternatives) {
+    const container = document.getElementById('alternatives-list');
+    if (!container) return;
+
+    if (!alternatives || alternatives.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: var(--text-subtle); font-size: 13px;">
+                <div style="font-size: 32px; margin-bottom: 8px;">🎯</div>
+                No alternative parts found. The searched item may be unique.
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = alternatives.map((alt, i) => {
+        const matchColor = alt.similarity_score >= 50 ? '#22c55e' : alt.similarity_score >= 25 ? '#f59e0b' : '#94a3b8';
+        return `
+            <div style="display: flex; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border-subtle); ${i === alternatives.length - 1 ? 'border-bottom: none;' : ''}">
+                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
+                    🔩
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-size: 13px; font-weight: 700; color: var(--text-base); margin-bottom: 2px;">${alt.item_name}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">${alt.category || '-'} · SKU: ${alt.sku || '-'} · ðŸ“ ${alt.location || '-'}</div>
+                    <div style="font-size: 11px; color: var(--text-subtle); margin-top: 2px;">💡 ${alt.compatibility_note || '-'}</div>
+                </div>
+                <div style="text-align: right; flex-shrink: 0;">
+                    <div style="font-size: 12px; font-weight: 700; color: ${matchColor};">${alt.similarity_score}% match</div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${alt.quantity} in stock</div>
+                    <div style="font-size: 11px; color: var(--text-subtle);">${Number(alt.unit_price || 0).toFixed(2)}/unit</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ── All Matches Panel ─────────────────────────────────────────
+function renderAllMatches(data) {
+    const panel     = document.getElementById('all-matches-panel');
+    const list      = document.getElementById('all-matches-list');
+    const countEl   = document.getElementById('match-count');
+
+    if (!data.found || !data.all_matches || data.all_matches.length <= 1) {
+        if (panel) panel.style.display = 'none';
+        return;
+    }
+
+    if (panel) panel.style.display = 'block';
+    if (countEl) countEl.textContent = `${data.total_matches} item${data.total_matches !== 1 ? 's' : ''} found`;
+
+    if (list) {
+        list.innerHTML = data.all_matches.map(m => `
+            <div style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); margin: 4px; font-size: 12px;">
+                <span style="color: var(--brand-secondary); font-weight: 700;">📦 ${m.name}</span>
+                <span style="color: var(--text-muted);">${m.quantity} units</span>
+                <span style="color: var(--text-subtle); font-size: 11px;">@ ${m.location || '-'}</span>
+            </div>
+        `).join('');
+    }
+}
+
+// ── Log User Decision ─────────────────────────────────────────
+async function logUserDecision(userAction) {
+    if (!_currentDecision) return;
+
+    const dept = document.getElementById('preventive-dept')?.value || '';
+
+    try {
+        const payload = {
+            item_id:          _currentDecision.item_id || null,
+            part_name:        _currentDecision.item_name || document.getElementById('preventive-search-input')?.value || '-',
+            confidence_score: _currentDecision.confidence?.confidence_score || 0,
+            retrieval_time:   _currentDecision.retrieval?.estimated_minutes || null,
+            decision:         _currentDecision.decision || '-',
+            reason:           _currentDecision.reason || '',
+            user_proceeded:   userAction === 'overridden',
+            user_action:      userAction,
+            department:       dept,
+        };
+
+        const res = await fetch('/api/preventive/log-decision', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+
+        const loggedMsg = document.getElementById('decision-logged-msg');
+        if (loggedMsg) {
+            if (userAction === 'overridden' && data.shadow_flag_raised) {
+                loggedMsg.style.background = 'rgba(245,158,11,0.1)';
+                loggedMsg.style.color = '#f59e0b';
+                loggedMsg.textContent = '⚠️ Decision logged - override flagged for audit';
+            } else {
+                loggedMsg.style.background = 'rgba(34,197,94,0.1)';
+                loggedMsg.style.color = '#22c55e';
+                loggedMsg.textContent = '✓ Decision logged - inventory used as recommended';
+            }
+            loggedMsg.style.display = 'block';
+        }
+
+        const actionLabel = userAction === 'followed' ? 'Use Internal Stock' : 'Proceed to Purchase';
+        showToast(`Decision logged: ${actionLabel}`, userAction === 'followed' ? 'success' : 'info');
+
+    } catch (e) {
+        console.error('[PREVENTIVE] Log decision failed:', e);
+        showToast('Failed to log decision', 'error');
+    }
+}
+
+// ── Decision History ──────────────────────────────────────────
+async function loadDecisionHistory() {
+    const panel = document.getElementById('preventive-history-panel');
+    const body  = document.getElementById('decision-history-body');
+
+    if (!panel || !body) return;
+
+    // Toggle visibility
+    if (panel.style.display !== 'none') {
+        panel.style.display = 'none';
+        return;
+    }
+
+    try {
+        const res  = await fetch('/api/preventive/decision-history?limit=50');
+        const logs = await res.json();
+        panel.style.display = 'block';
+
+        if (!logs || logs.length === 0) {
+            body.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No decisions logged yet</td></tr>';
+            return;
+        }
+
+        body.innerHTML = logs.map(l => {
+            const actionColor = l.user_action === 'followed' ? '#22c55e' : l.user_action === 'overridden' ? '#f59e0b' : '#94a3b8';
+            const decisionColor = (l.decision || '').toLowerCase().includes('internal') ? '#22c55e'
+                : (l.decision || '').toLowerCase().includes('verify') ? '#f59e0b' : '#ef4444';
+            return `
+                <tr>
+                    <td style="font-size:11px; color:var(--text-subtle);">${l.logged_at || '-'}</td>
+                    <td style="font-weight:600; font-size:12px;">${l.part_name || '-'}</td>
+                    <td><span style="color:${decisionColor}; font-size:11px; font-weight:700;">${l.decision || '-'}</span></td>
+                    <td style="text-align:center; color:${(l.confidence_score||0) >= 70 ? '#22c55e' : '#f59e0b'};">${(l.confidence_score || 0).toFixed(0)}%</td>
+                    <td style="text-align:center; color:var(--text-muted);">${l.retrieval_time ? l.retrieval_time + ' min' : '-'}</td>
+                    <td><span style="color:${actionColor}; font-size:11px; font-weight:700;">${l.user_action || '-'}</span></td>
+                    <td style="color:var(--text-subtle); font-size:11px;">${l.department || '-'}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('[PREVENTIVE] Decision history failed:', e);
+        showToast('Failed to load decision history', 'error');
+    }
+}
+
+// ── Confidence Overview ───────────────────────────────────────
+async function loadConfidenceOverview() {
+    const panel   = document.getElementById('confidence-overview-panel');
+    const content = document.getElementById('confidence-overview-content');
+
+    if (!panel || !content) return;
+
+    if (panel.style.display !== 'none') {
+        panel.style.display = 'none';
+        return;
+    }
+
+    panel.style.display = 'block';
+    content.innerHTML = '<div class="text-muted small text-center">Loading confidence overview...</div>';
+
+    try {
+        const res  = await fetch('/api/preventive/confidence');
+        const data = await res.json();
+        const items = data.items || [];
+
+        const avgColor = data.avg_confidence >= 70 ? '#22c55e' : data.avg_confidence >= 40 ? '#f59e0b' : '#ef4444';
+
+        content.innerHTML = `
+            <!-- Summary Row -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+                <div style="text-align: center; padding: 12px; background: var(--bg-card); border-radius: var(--radius-md);">
+                    <div style="font-size: 24px; font-weight: 800; color: ${avgColor};">${data.avg_confidence || 0}%</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">Avg Confidence</div>
+                </div>
+                <div style="text-align: center; padding: 12px; background: var(--bg-card); border-radius: var(--radius-md);">
+                    <div style="font-size: 24px; font-weight: 800; color: #22c55e;">${data.high_confidence || 0}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">High (≥70%)</div>
+                </div>
+                <div style="text-align: center; padding: 12px; background: var(--bg-card); border-radius: var(--radius-md);">
+                    <div style="font-size: 24px; font-weight: 800; color: #f59e0b;">${data.medium_confidence || 0}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">Medium (40-69%)</div>
+                </div>
+                <div style="text-align: center; padding: 12px; background: var(--bg-card); border-radius: var(--radius-md);">
+                    <div style="font-size: 24px; font-weight: 800; color: #ef4444;">${data.low_confidence || 0}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">Low (&lt;40%)</div>
+                </div>
+            </div>
+
+            <!-- Items Table -->
+            <div style="overflow-x: auto; max-height: 350px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Confidence</th>
+                            <th style="text-align:center">Grade</th>
+                            <th>Last Verified</th>
+                            <th style="text-align:center">Retrieval</th>
+                            <th>Location</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${items.map(item => {
+                            const r = item.retrieval || {};
+                            const confColor = item.confidence_color || '#94a3b8';
+                            return `
+                                <tr>
+                                    <td style="font-weight: 600; font-size: 12px;">${item.item_name}</td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div style="flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden;">
+                                                <div style="height: 100%; width: ${item.confidence_score}%; background: ${confColor}; border-radius: 2px;"></div>
+                                            </div>
+                                            <span style="color: ${confColor}; font-weight: 700; font-size: 12px; min-width: 38px;">${item.confidence_score.toFixed(0)}%</span>
+                                        </div>
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <span style="color: ${confColor}; font-weight: 700; font-size: 11px;">${item.confidence_label}</span>
+                                    </td>
+                                    <td style="font-size: 11px; color: var(--text-muted);">${item.last_verified || '-'}</td>
+                                    <td style="text-align:center; font-size: 11px; color: ${r.time_color || 'var(--text-muted)'};">
+                                        ${r.estimated_minutes ? r.estimated_minutes + ' min' : '-'}
+                                    </td>
+                                    <td style="font-size: 11px; color: var(--text-subtle);">${r.warehouse_location || '-'}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (e) {
+        console.error('[PREVENTIVE] Confidence overview failed:', e);
+        content.innerHTML = '<div class="text-muted small text-center">Failed to load overview</div>';
+    }
+}
+
+// ============================================================
+//  MODULE A: VENDOR RING DETECTION UI
+// ============================================================
+async function loadVendorRings() {
+    const c = document.getElementById('vendor-rings-container');
+    if (!c) return;
+    c.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-danger"></div><p class="mt-2 text-muted small">Running graph analysis…</p></div>';
+    try {
+        const data = await apiFetch('/api/vendor-rings');
+        renderVendorRings(c, data);
+    } catch (e) {
+        c.innerHTML = `<div class="alert alert-danger">Ring detection failed: ${e.message}</div>`;
+    }
+}
+
+function renderVendorRings(c, data) {
+    if (!data || data.status === 'no_data') {
+        c.innerHTML = `<div class="alert alert-info">${data?.message || 'No ring data.'}</div>`;
+        return;
+    }
+    const rings = data.rings || [];
+    const meta  = data.graph_meta || {};
+
+    const summary = `
+        <div class="row g-2 mb-3">
+            ${[['🏭','Vendors Analysed',data.vendors_analyzed],['🔗','Rings Detected',data.rings_detected],
+               ['🚨','Critical Rings',data.critical_rings],['💰','Exposure','₹'+(data.total_exposure||0).toLocaleString()]
+            ].map(([i,l,v])=>`
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 text-center p-2" style="background:rgba(255,255,255,.05);border-radius:10px">
+                        <div style="font-size:1.5rem">${i}</div>
+                        <div style="font-size:1.2rem;font-weight:700;color:#f8f9fa">${v}</div>
+                        <div class="text-muted" style="font-size:.7rem">${l}</div>
+                    </div>
+                </div>`).join('')}
+        </div>
+        <p class="text-muted small">Graph: ${meta.nodes||0} nodes · ${meta.edges||0} edges · ${meta.algorithm||'N/A'}</p>`;
+
+    const ringCards = rings.length === 0
+        ? '<div class="alert alert-success">✅ No collusion rings detected.</div>'
+        : rings.map(r => `
+            <div class="card mb-3 shadow-sm" style="background:rgba(255,255,255,.04);border-left:4px solid ${r.severity_color};border-radius:12px">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <div>
+                            <span class="badge me-2" style="background:${r.severity_color}">${r.severity}</span>
+                            <strong style="color:#f8f9fa">${r.ring_id}</strong>
+                            <span class="text-muted ms-2 small">${r.member_count} vendors · Risk ${(r.ring_risk_score*100).toFixed(0)}%</span>
+                        </div>
+                        <span class="text-warning small fw-bold">₹${(r.total_exposure||0).toLocaleString()}</span>
+                    </div>
+                    <div class="mb-2">${r.members.map(m=>`<span class="badge bg-secondary me-1">${m}</span>`).join('')}</div>
+                    ${r.shared_employees.length?`<div class="small text-warning mb-1">👤 Shared: ${r.shared_employees.slice(0,3).join(', ')}</div>`:''}
+                    ${r.shared_departments.length?`<div class="small text-info mb-1">🏢 Depts: ${r.shared_departments.slice(0,3).join(', ')}</div>`:''}
+                    <details class="mt-2">
+                        <summary class="small text-muted" style="cursor:pointer">AI Explanation (${r.explanation_factors.length} factors)</summary>
+                        <ul class="mt-2 small text-light ps-3">${r.explanation_factors.map(f=>`<li>${f}</li>`).join('')}</ul>
+                    </details>
+                </div>
+            </div>`).join('');
+
+    const isolated = (data.isolated_vendors||[]).length ? `
+        <div class="mt-3">
+            <h6 class="text-warning">⚡ High-Risk Isolated Vendors</h6>
+            <table class="table table-sm table-dark table-bordered">
+                <thead><tr><th>Vendor</th><th>Shadows</th><th>Avg Risk</th><th>Exposure</th></tr></thead>
+                <tbody>${data.isolated_vendors.map(v=>`
+                    <tr><td>${v.vendor_name}</td><td>${v.shadow_count}</td>
+                    <td><span class="badge bg-warning text-dark">${(v.avg_risk_score*100).toFixed(0)}%</span></td>
+                    <td>₹${(v.total_exposure||0).toLocaleString()}</td></tr>`).join('')}
+                </tbody>
+            </table>
+        </div>` : '';
+
+    c.innerHTML = summary + ringCards + isolated;
+}
+
+// ============================================================
+//  MODULE B: ML TRANSPARENCY PANEL
+// ============================================================
+async function loadMLTransparency() {
+    const c = document.getElementById('ml-transparency-container');
+    if (!c) return;
+    c.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-info"></div></div>';
+    try {
+        const d = await apiFetch('/api/ml/status');
+        renderMLTransparency(c, d);
+    } catch (e) {
+        c.innerHTML = `<div class="alert alert-danger">ML status failed: ${e.message}</div>`;
+    }
+}
+
+function renderMLTransparency(c, d) {
+    const drift   = d.drift || {};
+    const fitness = d.fitness || {};
+    const cal     = d.calibration || {};
+    const fb      = d.feedback_impact || {};
+    const fw      = d.feature_weights || {};
+    const levers  = d.xai_levers || {};
+    const dc      = drift.drift_detected ? '#f97316' : '#22c55e';
+
+    const fwBars = Object.entries(fw).map(([feat, w]) => {
+        const pct = (w * 100).toFixed(1);
+        return `<div class="mb-2">
+            <div class="d-flex justify-content-between small mb-1">
+                <span style="color:#e2e8f0">${feat}</span><span style="color:#94a3b8">${pct}%</span>
+            </div>
+            <div style="background:rgba(255,255,255,.1);border-radius:4px;height:7px">
+                <div style="width:${pct}%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:4px;height:7px"></div>
+            </div></div>`;
+    }).join('');
+
+    const pills = Object.entries(levers).map(([k,v]) =>
+        `<span class="badge bg-secondary me-1 mb-1" style="font-size:.7rem">${k}: <strong>${v}</strong></span>`
+    ).join('');
+
+    c.innerHTML = `
+        <div class="row g-2 mb-3">
+            ${[['Model',d.model_version,'#6366f1'],['Fitted',d.fitted?'✅ Yes':'❌ No',d.fitted?'#22c55e':'#ef4444'],
+               ['Precision',((fitness.precision||0)*100).toFixed(0)+'%','#f59e0b'],
+               ['FP Rate',((fitness.false_positive_rate||0)*100).toFixed(1)+'%','#ef4444'],
+               ['Samples',d.training_samples||0,'#0ea5e9'],
+               ['Confidence',cal.confidence_in_model||'N/A','#10b981']
+            ].map(([l,v,col])=>`
+                <div class="col-4 col-md-2">
+                    <div class="card border-0 p-2 text-center" style="background:rgba(255,255,255,.04);border-radius:10px">
+                        <div style="color:${col};font-weight:700">${v}</div>
+                        <div class="text-muted" style="font-size:.68rem">${l}</div>
+                    </div>
+                </div>`).join('')}
+        </div>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="card border-0 p-3 h-100" style="background:rgba(255,255,255,.04);border-radius:12px">
+                    <h6 style="color:#8b5cf6">🎯 Feature Weights</h6>${fwBars}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 p-3 h-100" style="background:rgba(255,255,255,.04);border-radius:12px">
+                    <h6 style="color:${dc}">📊 Drift: <span class="badge" style="background:${dc};font-size:.7rem">${drift.status||'N/A'}</span></h6>
+                    <div class="small">
+                        <div class="d-flex justify-content-between mb-1"><span class="text-muted">Recent mean</span><span>${drift.recent_mean_risk||0}</span></div>
+                        <div class="d-flex justify-content-between mb-1"><span class="text-muted">Historical</span><span>${drift.historical_mean||0}</span></div>
+                        <div class="d-flex justify-content-between"><span class="text-muted">Delta</span>
+                            <span style="color:${dc};font-weight:700">${(drift.delta||0)>=0?'+':''}${drift.delta||0}</span></div>
+                    </div>
+                    <hr style="border-color:rgba(255,255,255,.1)">
+                    <h6 style="color:#0ea5e9">🔄 Feedback</h6>
+                    <div class="small">
+                        <div class="d-flex justify-content-between mb-1"><span class="text-muted">Submissions</span><span>${fb.total_submissions||0}</span></div>
+                        <div class="d-flex justify-content-between mb-1"><span class="text-muted">Applied</span><span>${fb.applied||0}</span></div>
+                        <div class="d-flex justify-content-between"><span class="text-muted">Global offset</span>
+                            <span style="color:#f59e0b">${fb.global_risk_offset||0}</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 p-3 h-100" style="background:rgba(255,255,255,.04);border-radius:12px">
+                    <h6 style="color:#10b981">⚙️ XAI Levers</h6>
+                    <div class="mb-3">${pills}</div>
+                    <p class="small text-muted">${d.statistical_note||''}</p>
+                    <button class="btn btn-sm btn-outline-warning" onclick="triggerMLRetrain()">🔁 Force Retrain</button>
+                </div>
+            </div>
+        </div>`;
+}
+
+async function triggerMLRetrain() {
+    try {
+        const r = await apiFetch('/api/ml/retrain', { method: 'POST' });
+        showToast(`✅ ${r.message}`, 'success');
+        setTimeout(loadMLTransparency, 1500);
+    } catch (e) {
+        showToast(`❌ Retrain failed: ${e.message}`, 'danger');
+    }
+}
+
+// ============================================================
+//  MODULE C: TELEMETRY SUMMARY + VELOCITY
+// ============================================================
+async function loadTelemetrySummary() {
+    const c = document.getElementById('telemetry-summary-container');
+    if (!c) return;
+    try {
+        const d = await apiFetch('/api/telemetry/summary');
+        const hc = d.model_health==='Excellent'?'#22c55e':d.model_health==='Good'?'#f59e0b':'#ef4444';
+        c.innerHTML = `<div class="row g-2 text-center">
+            ${[['Model Health',d.model_health,hc],['Precision',((d.precision||0)*100).toFixed(0)+'%','#6366f1'],
+               ['FP Rate',((d.fp_rate||0)*100).toFixed(1)+'%','#ef4444'],['24h Shadows',d.shadows_24h||0,'#f97316'],
+               ['Total Shadows',d.total_shadows||0,'#0ea5e9'],['Unapproved V.',d.vendors_unapproved||0,'#f59e0b']
+            ].map(([l,v,col])=>`
+                <div class="col-4 col-md-2">
+                    <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:.5rem .2rem">
+                        <div style="color:${col};font-weight:700;font-size:.95rem">${v}</div>
+                        <div class="text-muted" style="font-size:.62rem">${l}</div>
+                    </div>
+                </div>`).join('')}
+        </div>`;
+    } catch (e) { console.warn('[TELEMETRY] summary', e); }
+}
+
+async function loadShadowVelocity() {
+    const c = document.getElementById('shadow-velocity-container');
+    if (!c) return;
+    try {
+        const d = await apiFetch('/api/telemetry/shadow-velocity');
+        const maxH = Math.max(1, ...d.hourly.map(h=>h.count));
+        const hBars = d.hourly.map(h=>{
+            const pct = Math.round((h.count/maxH)*55)+4;
+            const hot = h.hour>=20||h.hour<=5;
+            return `<div title="${h.label}: ${h.count}" style="display:inline-block;width:3.8%;margin:0 .1%;vertical-align:bottom">
+                <div style="background:${hot?'#ef4444':'#6366f1'};height:${pct}px;border-radius:2px 2px 0 0;opacity:.85"></div>
+                ${h.hour%6===0?`<div style="font-size:.5rem;color:#555;text-align:center">${String(h.hour).padStart(2,'0')}h</div>`:''}
+            </div>`;
+        }).join('');
+        const maxW = Math.max(1,...d.weekly.map(w=>w.count));
+        const wBars = d.weekly.map(w=>`
+            <div class="text-center" style="flex:1">
+                <div style="background:#8b5cf6;height:${Math.round(w.count/maxW*55)+4}px;border-radius:4px 4px 0 0;margin:0 2px;opacity:.85"></div>
+                <div class="text-muted" style="font-size:.65rem">${w.day}</div>
+            </div>`).join('');
+        c.innerHTML = `
+            <div class="mb-3">
+                <div class="small text-muted mb-1">Hour-of-Day <span class="badge bg-danger ms-1">Peak ${String(d.peak_hour||0).padStart(2,'0')}:00</span></div>
+                <div style="height:65px">${hBars}</div>
+            </div>
+            <div>
+                <div class="small text-muted mb-1">Day-of-Week <span class="badge ms-1" style="background:#8b5cf6">${d.peak_weekday||''}</span></div>
+                <div style="display:flex;align-items:flex-end;height:65px">${wBars}</div>
+            </div>`;
+    } catch (e) { console.warn('[TELEMETRY] velocity', e); }
+}
+
+// Tab-click auto-loaders
+document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('click', e => {
+        const tab = e.target.closest('[data-section]');
+        if (!tab) return;
+        const s = tab.getAttribute('data-section');
+        if (s === 'vendor-rings')  setTimeout(loadVendorRings,    100);
+        if (s === 'ml-status')     setTimeout(loadMLTransparency, 100);
+        if (s === 'telemetry') {
+            setTimeout(loadTelemetrySummary, 100);
+            setTimeout(loadShadowVelocity,   200);
+        }
+    });
+});
+
+window.loadVendorRings      = loadVendorRings;
+window.loadMLTransparency   = loadMLTransparency;
+window.triggerMLRetrain     = triggerMLRetrain;
+window.loadTelemetrySummary = loadTelemetrySummary;
+window.loadShadowVelocity   = loadShadowVelocity;

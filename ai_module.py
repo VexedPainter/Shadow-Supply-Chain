@@ -219,12 +219,32 @@ class ShadowAI:
         if len(missing) >= 2: return "Low"
         return "Vague"
 
-    def classify_item(self, description: str) -> str:
-        """Extract item category from transaction description."""
+    def normalize_and_classify_item(self, description: str) -> dict:
+        """Module 3: Semantic Normalization and Classification Engine."""
         desc = description.lower()
+        
+        # 1. Semantic Normalization (Synonym Dictionary)
+        synonyms = {
+            "bearing": ["brg", "ball bearing", "roller bearing", "tapered bearing"],
+            "motor": ["mtr", "elec motor", "drive motor"],
+            "pump": ["pmp", "water pump", "hydraulic pump"],
+            "valve": ["vlv", "gate valve", "ball valve", "check valve"],
+            "filter": ["fltr", "air filter", "oil filter"],
+            "sensor": ["snr", "transducer", "probe", "detector"]
+        }
+        
+        canonical_name = description
+        norm_score = 0.5
+        for canon, variations in synonyms.items():
+            if canon in desc or any(v in desc for v in variations):
+                canonical_name = canon.title()
+                norm_score = 0.95
+                break
+
+        # 2. Category Mapping
         categories = {
             "Pumps & Motors":     ["pump", "motor", "compressor", "conveyor", "starter", "alternator"],
-            "Electrical & PLC":   ["plc", "control board", "electrical", "cable", "wire", "module", "thermocouple"],
+            "Electrical & PLC":   ["plc", "control board", "electrical", "cable", "wire", "module", "thermocouple", "sensor"],
             "Fasteners":          ["bolt", "screw", "nut", "fastener", "rivet", "hex"],
             "Hydraulics":         ["hydraulic", "hose", "fitting", "valve", "seal", "o-ring", "gasket", "pressure"],
             "Safety Equipment":   ["safety", "goggle", "helmet", "glove", "vest", "hard hat", "fire extinguisher", "first aid"],
@@ -233,13 +253,35 @@ class ShadowAI:
             "Tools":              ["wrench", "tool", "drill", "saw", "hammer", "caliper"],
             "Cleaning & Chemicals": ["clean", "wd-40", "lubricant", "solvent", "supply", "degreaser", "paint", "tape"],
             "Raw Materials":      ["steel", "plate", "sheet", "pipe", "pvc", "bracket"],
-            "Bearings":           ["bearing"],
+            "Bearings":           ["bearing", "brg"],
             "Power Transmission": ["belt", "tensioner", "chain", "sprocket", "v-belt"],
         }
+        
+        category = "General / Uncategorized"
+        cat_confidence = 0.3
         for cat, keywords in categories.items():
             if any(kw in desc for kw in keywords):
-                return cat
-        return "General / Uncategorized"
+                category = cat
+                cat_confidence = 0.9
+                break
+
+        # 3. SKU Mapping Guess
+        sku_prefix = "".join([word[0].upper() for word in category.split() if word.isalpha()])
+        sku_guess = f"{sku_prefix}-{random.randint(1000, 9999)}" if category != "General / Uncategorized" else "UNKNOWN"
+        
+        overall_confidence = (norm_score + cat_confidence) / 2.0
+        
+        return {
+            "canonical_name": canonical_name,
+            "category": category,
+            "sku_guess": sku_guess,
+            "confidence": round(overall_confidence, 2),
+            "needs_human_review": overall_confidence < 0.7
+        }
+
+    def classify_item(self, description: str) -> str:
+        """Legacy compatibility wrapper."""
+        return self.normalize_and_classify_item(description)["category"]
 
     # ─── Decision Recommendation Engine ────────────────────
     def generate_recommendations(self, shadows: list, vendors: dict, transactions: dict) -> list[dict]:

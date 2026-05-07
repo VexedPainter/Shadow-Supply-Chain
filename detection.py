@@ -8,7 +8,8 @@ Includes: vendor trust scoring, risk metric snapshots, recommendation generation
 from sqlalchemy.orm import Session
 from database import (
     Transaction, Procurement, ShadowPurchase, Vendor, Inventory, 
-    RiskSnapshot, RiskMetric, ActionRecommendation, BehaviorMetric
+    RiskSnapshot, RiskMetric, ActionRecommendation, BehaviorMetric,
+    UnifiedEvent, EmergencyDecisionLog
 )
 from ai_module import shadow_ai
 import datetime
@@ -78,6 +79,31 @@ def run_detection(db: Session) -> dict:
             # 2. XAI Layer (Explainable AI)
             anomaly_factors = shadow_ai.get_anomaly_breakdown(features)
             
+            # ─── Module 2: Evidence Correlation ─────────────
+            from sqlalchemy import or_
+            related_events = db.query(UnifiedEvent).filter(
+                or_(
+                    UnifiedEvent.vendor_id == txn.vendor,
+                    UnifiedEvent.amount == txn.amount
+                )
+            ).all()
+            if related_events:
+                risk_score = min(1.0, risk_score + 0.2)
+                anomaly_factors.append("Correlated operational events (gate/delivery) found")
+            
+            # ─── Preventive Bypass Traceability ─────────────
+            bypass_log = db.query(EmergencyDecisionLog).filter(
+                EmergencyDecisionLog.user_action == "overridden",
+                EmergencyDecisionLog.department == txn.department
+            ).order_by(EmergencyDecisionLog.id.desc()).first()
+            
+            bypassed = False
+            priority_score = risk_score
+            if bypass_log and bypass_log.logged_at[:10] == txn.date[:10]:
+                bypassed = True
+                priority_score = min(1.0, priority_score + 0.4)
+                anomaly_factors.append("Bypassed preventive inventory recommendation")
+
             # 3. Financial Impact Engine
             vendor = vendors_map.get(txn.vendor)
             v_risk = vendor.risk_level if vendor else "High"
@@ -107,6 +133,8 @@ def run_detection(db: Session) -> dict:
                     data_quality_flag=dq_flag,
                     status="Pending",
                     item_category=item_cat,
+                    bypassed_preventive=bypassed,
+                    priority_score=priority_score
                 )
                 db.add(new_shadow)
                 db.flush() # Get ID
@@ -193,7 +221,8 @@ def resolve_shadow_purchase(db: Session, shadow_id: int, po_id: str = None) -> d
             return {"status": "error", "error": f"PO ID {po_id} already exists"}
         new_po_id = po_id
 
-    item_cat = shadow.item_category or shadow_ai.classify_item(txn.description)
+    norm_result = shadow_ai.normalize_and_classify_item(txn.description)
+    item_cat = shadow.item_category or norm_result["category"]
 
     # Single add for procurement
     db.add(Procurement(
@@ -203,8 +232,10 @@ def resolve_shadow_purchase(db: Session, shadow_id: int, po_id: str = None) -> d
         department=txn.department, source="Shadow-Resolved",
     ))
 
-    # OPTIMIZED inventory update - use indexed lookup instead of full table scan
-    inv_result = _update_inventory_optimized(db, txn, item_cat)
+    inv_result = {"action": "skipped", "reason": "Low confidence classification requires human review."}
+    if not norm_result["needs_human_review"]:
+        # OPTIMIZED inventory update - use indexed lookup instead of full table scan
+        inv_result = _update_inventory_optimized(db, txn, item_cat, norm_result)
 
     # Batch update all changes
     shadow.status = "Resolved"
@@ -298,7 +329,7 @@ def _is_match(txn: Transaction, po: Procurement) -> bool:
     return True
 
 
-def _update_inventory_optimized(db: Session, txn: Transaction, category: str) -> dict:
+def _update_inventory_optimized(db: Session, txn: Transaction, category: str, norm_result: dict = None) -> dict:
     """OPTIMIZED: Use category-based lookup instead of full table scan."""
     from sqlalchemy import or_
     
@@ -313,18 +344,45 @@ def _update_inventory_optimized(db: Session, txn: Transaction, category: str) ->
             if desc_words & item_words:
                 item.quantity += 1
                 item.last_updated = datetime.datetime.now().isoformat()
+                
+                # ── Module 7: Inventory Correction Ledger ──────────
+                from database import InventoryCorrectionLedger
+                db.add(InventoryCorrectionLedger(
+                    item_id=item.id,
+                    proposed_quantity_change=1,
+                    status="Auto-posted",
+                    evidence_source=f"Shadow Txn {txn.id}",
+                    reason_code="AI Match",
+                    timestamp=datetime.datetime.now().isoformat()
+                ))
+                
                 return {"action": "updated", "item": item.name, "new_qty": item.quantity}
     
     # Create new if no match
     inv_count = db.query(Inventory).count()
+    canonical_name = norm_result["canonical_name"] if norm_result else txn.description[:50]
+    sku = norm_result["sku_guess"] if norm_result else f"SHD-{txn.id}"
     new_item = Inventory(
         id=f"INV{str(inv_count + 1).zfill(3)}",
-        name=txn.description[:50], sku=f"SHD-{txn.id}",
+        name=canonical_name, sku=sku,
         quantity=1, unit_price=txn.amount,
         category=category, reorder_level=5, location="Receiving Dock",
         last_updated=datetime.datetime.now().isoformat()
     )
     db.add(new_item)
+    db.flush()
+    
+    # ── Module 7: Inventory Correction Ledger ──────────
+    from database import InventoryCorrectionLedger
+    db.add(InventoryCorrectionLedger(
+        item_id=new_item.id,
+        proposed_quantity_change=1,
+        status="Auto-posted",
+        evidence_source=f"Shadow Txn {txn.id}",
+        reason_code="New Item Creation",
+        timestamp=datetime.datetime.now().isoformat()
+    ))
+    
     return {"action": "created", "item": new_item.name, "new_qty": 1}
 
 
