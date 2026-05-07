@@ -2649,35 +2649,6 @@ class UnifiedEventRequest(BaseModel):
     item_guess: Optional[str] = None
     evidence_strength: Optional[float] = 0.5
 
-@app.get("/api/timeline/{machine_id}")
-def get_machine_timeline(machine_id: str, user: str = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Feature A: Shadow Event Timeline View for a specific machine."""
-    events = db.query(UnifiedEvent).filter(UnifiedEvent.machine_id == machine_id).order_by(UnifiedEvent.timestamp).all()
-    
-    timeline = []
-    for e in events:
-        timeline.append({
-            "id": e.id,
-            "type": e.source,
-            "timestamp": e.timestamp,
-            "actor": e.vendor_id or "System",
-            "outcome": e.raw_text,
-            "amount": e.amount
-        })
-        
-    # If no events found, generate a mock timeline for demo purposes
-    if not timeline:
-        now = datetime.datetime.now()
-        timeline = [
-            {"id": "m1", "type": "maintenance", "timestamp": (now - datetime.timedelta(hours=48)).strftime("%Y-%m-%d %H:%M:%S"), "actor": "Tech_01", "outcome": f"Machine {machine_id} breakdown reported.", "amount": None},
-            {"id": "m2", "type": "preventive_check", "timestamp": (now - datetime.timedelta(hours=47)).strftime("%Y-%m-%d %H:%M:%S"), "actor": "Tech_01", "outcome": "Queried internal stock (Confidence 40%)", "amount": None},
-            {"id": "m3", "type": "shadow_purchase", "timestamp": (now - datetime.timedelta(hours=45)).strftime("%Y-%m-%d %H:%M:%S"), "actor": "Tech_01", "outcome": "Emergency purchase made via Petty Cash", "amount": 1450.0},
-            {"id": "m4", "type": "inventory_correction", "timestamp": (now - datetime.timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S"), "actor": "System", "outcome": "Stock updated via PO matching", "amount": None},
-            {"id": "m5", "type": "verification", "timestamp": (now - datetime.timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S"), "actor": "Manager_02", "outcome": "Physical verification confirmed", "amount": None}
-        ]
-        
-    return {"machine_id": machine_id, "timeline": timeline}
-
 @app.post("/api/events/ingest")
 def ingest_event(req: UnifiedEventRequest, db: Session = Depends(get_db)):
     """Ingest operational signals into the UnifiedEvent timeline."""
@@ -2970,14 +2941,8 @@ def log_preventive_decision_v3(
     db: Session = Depends(get_db)
 ):
     """Log the user's action after receiving a preventive decision."""
-    estimated_cost = 0.0
-    if body.user_action == "followed" and body.item_id:
-        inv_item = db.query(Inventory).filter(Inventory.id == str(body.item_id)).first()
-        if inv_item:
-            estimated_cost = float(inv_item.unit_price or 0.0) * 1.2 # Emergency markup avoided
-
     log_entry = EmergencyDecisionLog(
-        item_id=str(body.item_id) if body.item_id else None,
+        item_id=body.item_id,
         part_name=body.part_name,
         confidence_score=body.confidence_score or 0,
         retrieval_time=body.retrieval_time,
@@ -2985,7 +2950,6 @@ def log_preventive_decision_v3(
         reason=body.reason,
         user_proceeded=body.user_proceeded,
         user_action=body.user_action,
-        estimated_cost_avoided=estimated_cost,
         logged_at=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         department=body.department,
     )
@@ -3255,43 +3219,31 @@ class DemoScenarioRequest(BaseModel):
 async def run_demo_scenario(req: DemoScenarioRequest, db: Session = Depends(get_db)):
     """Triggers pre-scripted events for Judge Demonstration."""
     import asyncio
-    
-    if req.scenario_id == "scenario_1":
-        # Normal shadow purchase — detection → correction → audit
-        await manager.broadcast({"type": "demo_event", "data": {"title": "Scenario 1", "message": "Shadow purchase detected."}})
-        await asyncio.sleep(1)
-        await manager.broadcast({"type": "demo_event", "data": {"title": "Scenario 1", "message": "Inventory correction ledger updated."}})
-        await asyncio.sleep(1)
-        await manager.broadcast({"type": "demo_event", "data": {"title": "Scenario 1", "message": "Audit log hash finalized."}})
-        return {"status": "Scenario 1 completed"}
+    if req.scenario_id == "late_night_breakdown":
+        # Simulate a gate entry
+        gate_data = {"item": "Bearing 6204", "guard": "Night Shift Gate", "time": datetime.datetime.now().isoformat()}
+        ingest_signal(SignalEventRequest(source_type="gate_entry", raw_data=gate_data), db)
         
-    elif req.scenario_id == "scenario_2":
-        # Confidence decay → verification task → physical confirm → trust restored
-        await manager.broadcast({"type": "demo_event", "data": {"title": "Scenario 2", "message": "Confidence decayed below 60%."}})
-        await asyncio.sleep(1)
-        await manager.broadcast({"type": "demo_event", "data": {"title": "Scenario 2", "message": "Verification task raised to Warehouse A."}})
-        await asyncio.sleep(1)
-        await manager.broadcast({"type": "demo_event", "data": {"title": "Scenario 2", "message": "Physical confirm received. Trust restored to 100%."}})
-        return {"status": "Scenario 2 completed"}
+        # Broadcast to UI
+        await manager.broadcast({
+            "type": "demo_event", 
+            "data": {"title": "Signal Detected", "message": "Gate entry logged for Bearing 6204."}
+        })
         
-    elif req.scenario_id == "scenario_3":
-        # Technician override → mismatch detected → urgent task raised
-        await manager.broadcast({"type": "demo_event", "data": {"title": "Scenario 3", "message": "Technician overrode system recommendation."}})
-        await asyncio.sleep(1)
-        await manager.broadcast({"type": "demo_event", "data": {"title": "Scenario 3", "message": "Mismatch detected in petty cash signal."}})
-        await asyncio.sleep(1)
-        await manager.broadcast({"type": "demo_event", "data": {"title": "Scenario 3", "message": "Urgent task raised to management."}})
-        return {"status": "Scenario 3 completed"}
-        
-    elif req.scenario_id == "scenario_4":
-        # Cross-warehouse mesh saves emergency purchase
-        await manager.broadcast({"type": "demo_event", "data": {"title": "Scenario 4", "message": "Part missing in local warehouse."}})
-        await asyncio.sleep(1)
-        await manager.broadcast({"type": "demo_event", "data": {"title": "Scenario 4", "message": "Cross-warehouse mesh query sent."}})
-        await asyncio.sleep(1)
-        await manager.broadcast({"type": "demo_event", "data": {"title": "Scenario 4", "message": "Emergency purchase avoided! Transfer from Warehouse B initiated."}})
-        return {"status": "Scenario 4 completed"}
-        
+        return {"status": "Scenario initiated"}
+    elif req.scenario_id == "trust_metric_boost":
+        metrics = db.query(UserTrustMetrics).filter(UserTrustMetrics.user_id == "demo_user").first()
+        if not metrics:
+            metrics = UserTrustMetrics(user_id="demo_user")
+            db.add(metrics)
+        metrics.trust_score = min(100, metrics.trust_score + 15)
+        metrics.estimated_cost_saved += 450.0
+        db.commit()
+        await manager.broadcast({
+            "type": "demo_event", 
+            "data": {"title": "Trust Improved", "message": "User trust score increased due to successful retrieval."}
+        })
+        return {"status": "Scenario initiated"}
     else:
         raise HTTPException(status_code=400, detail="Unknown scenario")
 

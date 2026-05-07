@@ -296,7 +296,6 @@ class EmergencyDecisionLog(Base):
     reason = Column(Text, nullable=True)                     # Human-readable explanation
     user_proceeded = Column(Boolean, nullable=True)          # Did user follow recommendation?
     user_action = Column(String, nullable=True)              # "followed" | "overridden"
-    estimated_cost_avoided = Column(Float, default=0.0)      # Feature B: Cost avoided
     logged_at = Column(String, nullable=False)               # ISO timestamp
     department = Column(String, nullable=True)               # Department making request
     severity = Column(String, default="safe")                # safe | caution | critical
