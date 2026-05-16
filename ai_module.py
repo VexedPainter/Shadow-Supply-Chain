@@ -19,6 +19,9 @@ import numpy as np
 from sklearn.ensemble import IsolationForest
 from datetime import datetime
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DataIngestionLayer:
@@ -32,14 +35,27 @@ class DataIngestionLayer:
         """
         Extract structured features from raw transaction data.
         Mirrors real ERP data extraction pipeline.
+        Produces 10 features matching the README specification exactly.
         """
         # Parse date features
         try:
-            dt = datetime.strptime(txn_dict.get("date", ""), "%Y-%m-%d")
+            date_str = str(txn_dict.get("date", ""))[:10]  # Trim to YYYY-MM-DD
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
             is_weekend = 1.0 if dt.weekday() >= 5 else 0.0
-            hour_risk = 0.0  # Would come from timestamp in real systems
         except (ValueError, TypeError):
             is_weekend = 0.0
+
+        # F9: Hour risk — after-hours purchases (requires timestamp HH portion)
+        try:
+            date_full = str(txn_dict.get("date", ""))
+            if " " in date_full:
+                hour = int(date_full.split(" ")[1][:2])
+            elif txn_dict.get("hour") is not None:
+                hour = int(str(txn_dict.get("hour"))[:2])
+            else:
+                hour = 9  # Default business hours
+            hour_risk = 1.0 if (hour < 7 or hour > 20) else 0.0
+        except (ValueError, TypeError, IndexError):
             hour_risk = 0.0
 
         # Payment type risk
@@ -49,19 +65,38 @@ class DataIngestionLayer:
         # Vendor risk
         vendor_risk = 0.5
         vendor_approved = True
+        vendor_avg = 0.0
         if vendor_info:
             vendor_risk = {"Low": 0.0, "Medium": 0.5, "High": 1.0}.get(
                 vendor_info.get("risk_level", "Medium"), 0.5
             )
             vendor_approved = vendor_info.get("approved", True)
+            vendor_avg = float(vendor_info.get("avg_order", 0) or 0)
+
+        # F7: Amount deviation from vendor average
+        amount = float(txn_dict.get("amount", 0))
+        if vendor_avg > 0:
+            amount_deviation = abs(amount - vendor_avg) / vendor_avg
+        else:
+            amount_deviation = 0.0
+
+        # F8: Department shadow rate (passed from detection context or default)
+        dept_risk_score = float(txn_dict.get("dept_risk_score", 0.5))
+
+        # F10: Recurring vendor pattern (same vendor purchased 3+ times — passed in)
+        is_recurring = float(txn_dict.get("is_recurring", 0))
 
         return {
-            "amount": float(txn_dict.get("amount", 0)),
+            "amount": amount,
             "payment_risk": payment_risk,
             "vendor_risk": vendor_risk,
             "is_weekend": is_weekend,
             "vendor_approved": vendor_approved,
             "has_card_holder": txn_dict.get("card_holder", "System") != "System",
+            "amount_deviation": round(amount_deviation, 3),
+            "dept_risk_score": dept_risk_score,
+            "hour_risk": hour_risk,
+            "is_recurring": is_recurring,
         }
 
 
@@ -71,26 +106,57 @@ class ShadowAI:
             contamination=0.2, random_state=42, n_estimators=150
         )
         self._fitted = False
+        self._contamination = 0.2
         self.ingestion = DataIngestionLayer()
         # Feedback-adjusted confidence offsets (category -> adjustment)
         self._feedback_adjustments: dict[str, float] = {}
         self._feedback_count = 0
+        # Preserved for retraining — stores the original training corpus
+        self._last_training_set: list[dict] = []
+
+    def _feature_vector(self, features: dict) -> list:
+        """
+        10-feature vector for Isolation Forest.
+        Matches README specification exactly.
+
+        F1  amount            – transaction dollar value (continuous)
+        F2  payment_risk      – 0=Invoice, 0.5=Expense Claim, 1.0=Corp Card
+        F3  vendor_risk       – 0=Low, 0.5=Medium, 1.0=High
+        F4  is_weekend        – 1 if Sat/Sun, else 0
+        F5  vendor_approved   – 0=approved, 1=unapproved (risk inversion)
+        F6  has_card_holder   – 1 if named employee, 0 if system/automated
+        F7  amount_deviation  – deviation from vendor's historical avg (normalized)
+        F8  dept_risk_score   – department's shadow purchase rate (0–1)
+        F9  hour_risk         – 1 if purchase outside 07:00–20:00, else 0
+        F10 is_recurring      – 1 if same vendor purchased 3+ times this month
+        """
+        return [
+            float(features.get("amount", 0)),                          # F1
+            float(features.get("payment_risk", 0.5)),                  # F2
+            float(features.get("vendor_risk", 0.5)),                   # F3
+            float(features.get("is_weekend", 0)),                      # F4
+            0.0 if features.get("vendor_approved", True) else 1.0,    # F5: unapproved = higher risk
+            1.0 if features.get("has_card_holder", False) else 0.0,   # F6
+            float(features.get("amount_deviation", 0)),                # F7
+            float(features.get("dept_risk_score", 0.5)),               # F8
+            float(features.get("hour_risk", 0)),                       # F9
+            float(features.get("is_recurring", 0)),                    # F10
+        ]
 
     def fit_anomaly_detector(self, feature_sets: list[dict]):
-        """Train Isolation Forest on multi-dimensional transaction features."""
+        """Train Isolation Forest on 10-dimensional transaction feature vectors."""
         if len(feature_sets) < 5:
             return
-        X = np.array([
-            [f["amount"], f["payment_risk"], f["vendor_risk"], f["is_weekend"]]
-            for f in feature_sets
-        ])
+        X = np.array([self._feature_vector(f) for f in feature_sets])
         self.anomaly_detector.fit(X)
         self._fitted = True
+        # Preserve training corpus so retrain_from_feedback can extend it
+        self._last_training_set = list(feature_sets)
 
     def get_anomaly_score(self, features: dict) -> float:
         """Return risk score 0-1. Higher = more anomalous."""
         if not self._fitted:
-            # Fallback heuristic
+            # Fallback heuristic (model not yet trained)
             base = 0.3
             if features.get("payment_risk", 0) > 0.5:
                 base += 0.15
@@ -98,14 +164,11 @@ class ShadowAI:
                 base += 0.2
             if features.get("amount", 0) > 2000:
                 base += 0.15
+            if not features.get("vendor_approved", True):
+                base += 0.1
             return min(1.0, round(base, 3))
 
-        X = np.array([[
-            features["amount"],
-            features["payment_risk"],
-            features["vendor_risk"],
-            features["is_weekend"],
-        ]])
+        X = np.array([self._feature_vector(features)])
         score = self.anomaly_detector.decision_function(X)[0]
         # Normalize: decision_function gives negative for anomalies
         normalized = max(0.0, min(1.0, 0.5 - score * 0.8))
@@ -400,6 +463,59 @@ class ShadowAI:
             "status": "AI Logic Recalibrated"
         }
 
+    def retrain_from_feedback(self, confirmed_shadows: list, false_positives: list) -> dict:
+        """
+        Retrain Isolation Forest using feedback-corrected dataset.
+        Call this on a schedule (daily) or after every 10 feedback submissions.
+
+        confirmed_shadows: list of feature dicts from reviewer-confirmed shadow purchases
+        false_positives:   list of feature dicts from reviewer-confirmed false positives
+
+        Strategy:
+        - Oversample false positives to teach model what 'normal' looks like
+        - Tune contamination parameter based on confirmed shadow rate
+        """
+        if not confirmed_shadows and not false_positives:
+            return {"retrained": False, "reason": "No feedback data provided"}
+
+        # Compute new contamination estimate from confirmed feedback
+        total_feedback = len(confirmed_shadows) + len(false_positives)
+        confirmed_rate = len(confirmed_shadows) / total_feedback if total_feedback > 0 else 0.2
+        new_contamination = max(0.05, min(0.4, confirmed_rate))
+
+        # Rebuild training corpus: original + oversampled false positives
+        all_features = list(self._last_training_set or [])
+        # Oversample false positives 3× — teaches the model what 'normal' looks like
+        all_features += false_positives * 3
+
+        if len(all_features) < 5:
+            return {"retrained": False, "reason": "Insufficient training samples after augmentation"}
+
+        # Retrain with adjusted contamination
+        self.anomaly_detector = IsolationForest(
+            contamination=new_contamination,
+            random_state=42,
+            n_estimators=150
+        )
+        X = np.array([self._feature_vector(f) for f in all_features])
+        self.anomaly_detector.fit(X)
+        self._fitted = True
+        self._contamination = new_contamination
+        self._last_training_set = all_features
+
+        logger.info(
+            f"[ShadowAI] Retrained: contamination={new_contamination:.3f}, "
+            f"samples={len(all_features)}, confirmed={len(confirmed_shadows)}, fp={len(false_positives)}"
+        )
+
+        return {
+            "retrained": True,
+            "new_contamination": round(new_contamination, 4),
+            "training_samples": len(all_features),
+            "confirmed_shadows_used": len(confirmed_shadows),
+            "false_positives_used": len(false_positives),
+        }
+
 
     def get_decision_explanation(self, features: dict, risk_score: float, category: str) -> dict:
         """Generate full explainable AI output."""
@@ -424,3 +540,83 @@ class ShadowAI:
 
 # Singleton
 shadow_ai = ShadowAI()
+
+
+# =============================================================================
+# F6: NLP Contract Compliance Checker
+# =============================================================================
+
+async def check_contract_compliance(txn: dict, contract_text: str) -> dict:
+    """
+    F6: Use Groq LLM to check whether a transaction violates a vendor's
+    contract / MSA terms.
+
+    Args:
+        txn:           dict with keys: vendor, amount, date, payment_type, category
+        contract_text: raw contract text (first 2000 chars used to fit context)
+
+    Returns:
+        {compliant: bool, violations: [str], severity: "low|medium|high"}
+
+    Gracefully falls back to {compliant: True} if Groq is unavailable.
+    """
+    if not contract_text or not contract_text.strip():
+        return {
+            "compliant":  True,
+            "violations": [],
+            "severity":   "low",
+            "note":       "No active contract on file for this vendor",
+        }
+
+    prompt = f"""You are a procurement compliance checker.
+
+CONTRACT TERMS (first 2000 chars):
+{contract_text[:2000]}
+
+TRANSACTION TO CHECK:
+- Vendor:       {txn.get('vendor', '')}
+- Amount:       ${txn.get('amount', 0):,.2f}
+- Category:     {txn.get('category', 'Unknown')}
+- Date:         {txn.get('date', '')}
+- Payment type: {txn.get('payment_type', '')}
+
+Does this transaction violate any contract terms?
+Reply with valid JSON ONLY — no extra text, no markdown fences:
+{{"compliant": true, "violations": [], "severity": "low"}}"""
+
+    try:
+        # Lazy import to avoid circular dependency with ai_copilot.py
+        from ai_copilot import _init_groq
+        client = _init_groq()
+        if not client:
+            return {
+                "compliant":  True,
+                "violations": [],
+                "severity":   "low",
+                "note":       "Groq not configured — compliance check skipped",
+            }
+
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=400,
+            temperature=0.1,   # Low temperature for deterministic JSON output
+        )
+        raw = response.choices[0].message.content.strip()
+        # Strip markdown fences if model adds them anyway
+        raw = raw.replace("```json", "").replace("```", "").strip()
+        result = json.loads(raw)
+        # Ensure required keys exist
+        return {
+            "compliant":  bool(result.get("compliant", True)),
+            "violations": list(result.get("violations", [])),
+            "severity":   str(result.get("severity", "low")),
+        }
+    except json.JSONDecodeError as e:
+        logger.warning(f"[F6] Contract compliance JSON parse error: {e} | raw={raw[:200]}")
+        return {"compliant": True, "violations": [], "severity": "low",
+                "error": f"JSON parse error: {e}"}
+    except Exception as e:
+        logger.warning(f"[F6] Contract compliance check failed: {e}")
+        return {"compliant": True, "violations": [], "severity": "low",
+                "error": str(e)}

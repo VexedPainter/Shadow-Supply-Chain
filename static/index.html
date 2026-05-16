@@ -124,6 +124,14 @@
                     <button class="btn btn-primary btn-sm" onclick="downloadExecReport()" title="Download PDF Executive Summary">📊 Executive Summary</button>
                     <button class="btn btn-emerald btn-sm" onclick="exportExcel('comprehensive')" title="Download Multi-Sheet Excel Audit Report">📄 Comprehensive Report</button>
                     <button class="btn btn-outline btn-sm" onclick="exportCSV('shadows')" title="Download CSV Shadow Spend Ledger">⬇ CSV Ledger</button>
+                    <button class="btn btn-primary btn-sm" onclick="triggerCSVImport()">📤 Import CSV/Excel</button>
+                    <button class="btn btn-outline btn-sm" id="btn-demo-reset"
+                        onclick="if(confirm('Reset all demo data to exhibition state?')){demoReset()}"
+                        title="Reset shadows to Pending, clear feedback, restore vendor trust scores"
+                        style="border-color:var(--accent-amber);color:var(--accent-amber)">
+                        🔄 Reset Demo
+                    </button>
+                    <input type="file" id="csv-file-input" accept=".csv,.xlsx" style="display:none" onchange="importCSVData(this)">
                 </div>
             </div>
 
@@ -145,13 +153,13 @@
                     <div class="card-value" id="stat-shadow-rate">0.0%</div>
                     <div class="card-sub">Shadow detection density</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card" id="stat-dq-card">
                     <div class="card-icon green">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
                     </div>
                     <div class="card-label">Detection Quality</div>
-                    <div class="card-value" id="stat-dq">High</div>
-                    <div class="card-sub">AI model confidence level</div>
+                    <div class="card-value" id="stat-dq">85.0%</div>
+                    <div class="card-sub" id="stat-dq-sub">baseline — no feedback yet</div>
                 </div>
                 <div class="stat-card">
                     <div class="card-icon purple">
@@ -184,9 +192,17 @@
                     <h3>📊 Shadow vs Matched Transactions</h3>
                     <div class="chart-container"><canvas id="chartShadowRatio"></canvas></div>
                 </div>
-                <div class="chart-box">
-                    <h3>🏢 Department Risk Heatmap</h3>
-                    <div id="deptRiskHeatmap" style="padding: 10px; min-height: 200px;"></div>
+                <div class="card" id="dept-risk-panel" style="background:var(--bg-card); border-radius:12px; padding:16px; border:1px solid var(--border-color);">
+                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="margin:0; font-size:14px;">Predictive Department Risk</h3>
+                        <button class="btn btn-sm btn-outline" onclick="fetchDeptRisk()">🔄 Refresh</button>
+                    </div>
+                    <div class="card-body" style="padding-top:10px;">
+                        <div id="dept-risk-loading" style="display:none; color: var(--text-muted); font-size:14px;">
+                            Analysing department patterns...
+                        </div>
+                        <div id="dept-risk-list"></div>
+                    </div>
                 </div>
                 <div class="chart-box">
                     <h3>⚡ Category Distribution</h3>
@@ -194,10 +210,42 @@
                 </div>
             </div>
 
+            <!-- ESG panel -->
+            <div class="card" id="esg-panel" style="margin-top: 20px; background:var(--bg-card); padding:20px; border-radius:var(--radius-lg); border: 1px solid var(--border-medium);">
+                <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0;">ESG & Carbon Tracking</h3>
+                    <button class="btn btn-sm btn-outline" onclick="fetchESGReport()">🔄 Refresh</button>
+                </div>
+                <div class="card-body" style="margin-top:16px;">
+                    <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px;">
+                        <div class="stat-card" style="flex:1;">
+                            <div class="stat-label" style="font-size:11px;color:var(--text-muted);">Total CO₂ (kg)</div>
+                            <div class="stat-value" id="esg-total-carbon" style="font-size:24px;font-weight:700;">—</div>
+                        </div>
+                        <div class="stat-card" style="flex:1;">
+                            <div class="stat-label" style="font-size:11px;color:var(--text-muted);">Vendors Certified</div>
+                            <div class="stat-value" id="esg-certified-count" style="font-size:24px;font-weight:700;">—</div>
+                        </div>
+                        <div class="stat-card" style="flex:1;">
+                            <div class="stat-label" style="font-size:11px;color:var(--text-muted);">Avg ESG Score</div>
+                            <div class="stat-value" id="esg-avg-score" style="font-size:24px;font-weight:700;">—</div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:8px; font-size:13px; font-weight:600;">
+                        Top emitting departments
+                    </div>
+                    <div id="esg-dept-list"></div>
+                    <div style="margin-top:16px; font-size:13px; font-weight:600;">
+                        Vendor ESG scores
+                    </div>
+                    <div id="esg-vendor-list"></div>
+                </div>
+            </div>
+
             <!-- 📈 Trend Insights -->
             <div class="panel" style="margin-top: 20px;">
                 <div class="panel-header">
-                    <h3>📈 Trend Insights</h3>
+                    <h3>📈 Trend Insights & Executive Trend (YTD)</h3>
                     <span class="small text-muted" id="trend-updated">Updating...</span>
                 </div>
                 <div id="trend-content" style="padding: 20px;">
@@ -221,6 +269,10 @@
                             <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--text-muted);">Highest Risk Department</div>
                             <div id="trend-top-dept" style="font-size: 14px; font-weight: 700; color: var(--text-heading); padding: 8px; background: var(--bg-region); border-radius: var(--radius-sm);">-</div>
                         </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; height: 300px;">
+                        <canvas id="trendChart"></canvas>
                     </div>
 
                     <div style="margin-top: 15px; padding: 12px; background: rgba(0, 35, 75, 0.04); border-radius: var(--radius-md);">
@@ -394,6 +446,7 @@
                                 <th>Department</th>
                                 <th>Payment</th>
                                 <th>Status</th>
+                                <th>Compliance</th>
                             </tr>
                         </thead>
                         <tbody id="txn-table-body"></tbody>
@@ -412,6 +465,31 @@
                 <div class="header-actions">
                     <button class="btn btn-primary btn-sm" onclick="downloadPO('all')">📄 Download All POs</button>
                     <button class="btn btn-outline btn-sm" onclick="exportCSV('procurement')">⬇ Export</button>
+                </div>
+            </div>
+            <!-- Auto-Drafted POs panel -->
+            <div class="card" id="auto-po-panel" style="margin-bottom:20px; background:var(--bg-card); padding:20px; border-radius:var(--radius-lg); border: 1px solid var(--border-medium);">
+                <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0;">Auto-Drafted Purchase Orders</h3>
+                    <button class="btn btn-sm btn-outline" onclick="fetchAutoPODrafts()">🔄 Refresh</button>
+                </div>
+                <div class="card-body" style="overflow-x:auto; margin-top:16px;">
+                    <table class="professional-table" id="po-drafts-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Qty</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Auto-Raised</th>
+                            </tr>
+                        </thead>
+                        <tbody id="po-drafts-tbody">
+                            <tr><td colspan="5" style="text-align:center; color:var(--text-muted);">
+                                Loading...
+                            </td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
             <div class="panel">
@@ -445,6 +523,20 @@
                 </div>
             </div>
             <div class="grid-2">
+                <!-- Supplier Network panel -->
+                <div class="card" id="supplier-network-panel" style="background:var(--bg-card); padding:20px; border-radius:var(--radius-lg); border: 1px solid var(--border-medium);">
+                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="margin:0;">Supply Chain Disruption Graph</h3>
+                        <button class="btn btn-sm btn-outline" onclick="fetchSupplierNetwork()">🔄 Refresh</button>
+                    </div>
+                    <div class="card-body" style="margin-top:16px;">
+                        <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
+                            Vendors ranked by disruption risk — high dependents, few alternatives = critical.
+                        </p>
+                        <div id="supplier-network-list"></div>
+                    </div>
+                </div>
+
                 <div class="panel">
                     <div class="panel-header"><h3>Vendor Risk Matrix</h3></div>
                     <div style="overflow-x:auto;max-height:800px;overflow-y:auto">
@@ -456,6 +548,8 @@
                                     <th>Risk</th>
                                     <th>Trust</th>
                                     <th>Approved</th>
+                                    <th>Contract</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="vendor-table-body"></tbody>
@@ -477,10 +571,36 @@
                 <div>
                     <h2>Inventory Registry</h2>
                     <p>Parts, supplies & stock levels tracked across all reconciled items</p>
-
                 </div>
             </div>
-            <div class="inv-grid" id="inv-grid-body"></div>
+            <div class="card" id="inventory-panel" style="background:var(--bg-card); padding:20px; border-radius:var(--radius-lg); border: 1px solid var(--border-medium);">
+                <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0;">Live Inventory</h3>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-sm btn-outline" onclick="fetchIoTInventory()">🔄 Refresh</button>
+                        <button class="btn btn-sm btn-outline" onclick="openIoTSyncModal()">📡 Sync IoT</button>
+                    </div>
+                </div>
+                <div class="card-body" style="overflow-x:auto; margin-top:16px;">
+                    <table class="professional-table" id="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Location</th>
+                                <th>Qty</th>
+                                <th>Reorder At</th>
+                                <th>Status</th>
+                                <th>Last Synced</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-tbody">
+                            <tr><td colspan="6" style="text-align:center; color:var(--text-muted);">
+                                Loading...
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </section>
 
         <!-- ── PREVENTIVE CHECK TAB ── -->
@@ -717,6 +837,11 @@
                     <button class="btn btn-outline btn-sm" onclick="exportCSV('audit')">⬇ Export Audit Log</button>
                 </div>
             </div>
+            <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
+                <button class="btn btn-danger btn-sm" style="background:#dc3545; color:#fff;" onclick="triggerDataPurge()">
+                    🗑️ Execute SOC 2 Data Purge
+                </button>
+            </div>
             <div class="panel">
                 <div style="overflow-x:auto;max-height:800px;overflow-y:auto">
                     <table id="audit-table">
@@ -835,6 +960,93 @@
 
 <!-- === Toast === -->
 <div class="toast" id="toast"></div>
+
+<!-- === Contract upload modal === -->
+<div id="contract-modal" style="display:none; position:fixed; inset:0;
+     background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card); border-radius:12px; padding:24px;
+                width:90%; max-width:560px; box-shadow:0 8px 32px rgba(0,0,0,0.2); border: 1px solid var(--border-medium);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3 style="margin:0;">Upload Vendor Contract (MSA)</h3>
+            <button onclick="closeContractModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted);">×</button>
+        </div>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
+            Paste the vendor's Master Service Agreement text below.
+            The AI will check all future transactions against these terms.
+        </p>
+        <textarea id="contract-text-input" rows="10"
+                  style="width:100%; padding:10px; border-radius:8px;
+                         border:1px solid var(--border-medium); resize:vertical;
+                         font-family:monospace; font-size:12px;
+                         background:rgba(0,0,0,0.2); color:var(--text-primary);"
+                  placeholder="Paste contract text here..."></textarea>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
+            <button class="btn btn-outline" onclick="closeContractModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="submitContract()">📤 Upload Contract</button>
+        </div>
+    </div>
+</div>
+
+<!-- === Compliance result modal === -->
+<div id="compliance-modal" style="display:none; position:fixed; inset:0;
+     background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card); border-radius:12px; padding:24px;
+                width:90%; max-width:500px; border: 1px solid var(--border-medium);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3 style="margin:0;">Contract Compliance Result</h3>
+            <button onclick="closeComplianceModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted);">×</button>
+        </div>
+        <div id="compliance-result-body"></div>
+    </div>
+</div>
+
+<!-- === IoT manual sync modal === -->
+<div id="iot-modal" style="display:none; position:fixed; inset:0;
+     background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card); border-radius:12px; padding:24px;
+                width:90%; max-width:400px; border: 1px solid var(--border-medium);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3 style="margin:0;">Manual IoT Sync</h3>
+            <button onclick="closeIoTModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted);">×</button>
+        </div>
+        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Item ID</label>
+        <input type="text" id="iot-item-id" placeholder="e.g. ITEM-001"
+               style="width:100%; margin-bottom:12px; padding:8px 10px; border-radius:8px; border:1px solid var(--border-medium); background:rgba(0,0,0,0.2); color:var(--text-primary); outline:none;">
+        
+        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Current Quantity</label>
+        <input type="number" id="iot-qty" placeholder="e.g. 8"
+               style="width:100%; margin-bottom:12px; padding:8px 10px; border-radius:8px; border:1px solid var(--border-medium); background:rgba(0,0,0,0.2); color:var(--text-primary); outline:none;">
+        
+        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Location</label>
+        <input type="text" id="iot-location" placeholder="e.g. Warehouse A"
+               style="width:100%; margin-bottom:16px; padding:8px 10px; border-radius:8px; border:1px solid var(--border-medium); background:rgba(0,0,0,0.2); color:var(--text-primary); outline:none;">
+        
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button class="btn btn-outline" onclick="closeIoTModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="submitIoTSync()">📡 Sync</button>
+        </div>
+    </div>
+</div>
+
+<!-- === Mobile Bottom Navigation === -->
+<nav class="mobile-nav">
+    <div class="mobile-nav-item active" onclick="switchTab('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;margin-bottom:4px;"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Overview
+    </div>
+    <div class="mobile-nav-item" onclick="switchTab('shadows')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;margin-bottom:4px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        Alerts
+    </div>
+    <div class="mobile-nav-item" onclick="switchTab('preventive')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;margin-bottom:4px;"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Check
+    </div>
+    <div class="mobile-nav-item" onclick="switchTab('vendors')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;margin-bottom:4px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Vendors
+    </div>
+</nav>
 
 <script src="/static/app.js"></script>
 </body>

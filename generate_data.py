@@ -169,14 +169,172 @@ with open("data/maintenance_logs.csv", "w", newline="") as f:
     w.writeheader(); w.writerows(logs)
 
 print("=" * 60)
-print("✅ COMPREHENSIVE DATASETS GENERATED")
+print("COMPREHENSIVE DATASETS GENERATED (CSV files)")
 print("=" * 60)
-print(f"   📦 {len(vendors)} vendors (6 high-risk, 5 medium, 10 low)")
-print(f"   📋 {len(inventory_items)} inventory items")
-print(f"   📄 {len(procurement)} procurement records (POs)")
-print(f"   💳 {len(transactions)} financial transactions")
-print(f"      ├─ {sum(1 for t in transactions if t['payment_type'] == 'Invoice')} matched invoices")
-print(f"      ├─ {sum(1 for t in transactions if t['payment_type'] == 'Corporate Card')} corporate card purchases")
-print(f"      └─ {sum(1 for t in transactions if t['payment_type'] == 'Expense Claim')} expense claims")
-print(f"   🔧 {len(logs)} maintenance logs")
+print(f"   {len(vendors)} vendors | {len(inventory_items)} inventory items")
+print(f"   {len(procurement)} POs | {len(transactions)} transactions | {len(logs)} maintenance logs")
 print(f"\n   Data simulates ERP extraction from structured databases.")
+
+
+# =============================================================================
+# EXHIBITION SCENARIO SEEDS — writes directly to SQLite DB
+# Run these AFTER the main CSV import to populate the DB with a compelling story.
+# =============================================================================
+def _seed_exhibition_scenarios():
+    """
+    Seeds 4 narrative scenarios that make the demo visually compelling:
+      1. Vendor collusion ring    — 3 vendors, same employee, split-PO fraud
+      2. Repeat bypass pattern    — 4 overrides, triggers B10 escalation
+      3. Improving Finance dept   — shadow rate 45% -> 8% over 3 months
+      4. Headline night purchase  — $47,200 at 11:31pm Saturday
+    """
+    import sys
+    import os
+    # Only runs when SQLAlchemy models are importable (i.e. run inside the project)
+    try:
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from database import Base, Transaction, EmergencyDecisionLog, Vendor
+        import random, datetime
+
+        db_path = os.path.join(os.path.dirname(__file__), "shadow_supply.db")
+        if not os.path.exists(db_path):
+            print("[Seed] DB not found — skipping exhibition seed (run app first to create DB)")
+            return
+
+        engine  = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+        Session = sessionmaker(bind=engine)
+        db      = Session()
+
+        # ── 1. Collusion ring ────────────────────────────────────────────────
+        ring = [
+            ("FastParts Ltd",    4850.00, "2025-02-03"),
+            ("QuickSupply Co",   4880.00, "2025-02-04"),
+            ("RapidTools Inc",   4910.00, "2025-02-05"),
+        ]
+        for vendor, amount, date in ring:
+            # Ensure vendor record exists
+            if not db.query(Vendor).filter(Vendor.name == vendor).first():
+                db.add(Vendor(
+                    id=f"V-RING-{vendor[:3].upper()}",
+                    name=vendor, category="General Hardware",
+                    risk_level="High", approved=False, avg_order=amount,
+                    trust_score=20.0,
+                ))
+            db.add(Transaction(
+                vendor=vendor, amount=amount, date=date,
+                description=f"Emergency parts order — below approval threshold",
+                payment_type="Corporate Card", card_holder="John Miller",
+                department="Maintenance", is_shadow=True,
+            ))
+        db.commit()
+        print("[Seed] Collusion ring: FastParts / QuickSupply / RapidTools — Maintenance dept")
+
+        # ── 2. Repeat bypass pattern ─────────────────────────────────────────
+        bypass_vendor = "LocalHardware Store"
+        if not db.query(Vendor).filter(Vendor.name == bypass_vendor).first():
+            db.add(Vendor(
+                id="V-BYPASS-LH", name=bypass_vendor, category="General Hardware",
+                risk_level="High", approved=False, avg_order=1200.0, trust_score=15.0,
+            ))
+        for i in range(4):
+            day = f"2025-03-{10 + i:02d}"
+            db.add(Transaction(
+                vendor=bypass_vendor, amount=1200.00 + (i * 50), date=day,
+                description=f"Unplanned parts purchase — bypass #{i+1}",
+                payment_type="Expense Claim", card_holder="Dave Wilson",
+                department="Operations", is_shadow=True,
+            ))
+            db.add(EmergencyDecisionLog(
+                department="Operations",
+                user_action="overridden",
+                logged_at=day,
+                reason=f"Manager override #{i+1} — urgent production need",
+            ))
+        db.commit()
+        print("[Seed] Repeat bypass: Dave Wilson / Operations — 4 overrides in 14 days")
+
+        # ── 3. Improving Finance dept ────────────────────────────────────────
+        random.seed(42)  # deterministic so demo is repeatable
+        months = [
+            ("2025-01", 0.45, "Finance improvement — January baseline"),
+            ("2025-02", 0.25, "Finance improvement — February intervention"),
+            ("2025-03", 0.08, "Finance improvement — March compliant"),
+        ]
+        approved_vendors = ["Acme Corp", "BetaSupplies", "GammaTech"]
+        shadow_vendors   = ["QuickFix Parts Shop", "Random Online Seller", "Bob's Hardware Store"]
+        for month_prefix, shadow_rate, desc_base in months:
+            for day in range(1, 15):
+                date     = f"{month_prefix}-{day:02d}"
+                is_shad  = random.random() < shadow_rate
+                vendor   = random.choice(shadow_vendors if is_shad else approved_vendors)
+                db.add(Transaction(
+                    vendor=vendor,
+                    amount=round(random.uniform(500, 8000), 2),
+                    date=date,
+                    description=f"Finance dept purchase — {month_prefix}",
+                    payment_type="Corporate Card" if is_shad else "Invoice",
+                    card_holder="Finance Team" if not is_shad else "Lisa Park",
+                    department="Finance",
+                    is_shadow=is_shad,
+                ))
+        db.commit()
+        print("[Seed] Finance improvement arc: 45% -> 25% -> 8% shadow rate over Q1 2025")
+
+        # ── 4. Headline night purchase ───────────────────────────────────────
+        headline_vendor = "ShadowTech Solutions"
+        if not db.query(Vendor).filter(Vendor.name == headline_vendor).first():
+            db.add(Vendor(
+                id="V-HEADLINE-ST", name=headline_vendor, category="Technology",
+                risk_level="High", approved=False, avg_order=47200.0, trust_score=5.0,
+            ))
+        db.add(Transaction(
+            vendor=headline_vendor,
+            amount=47200.00,
+            date="2025-03-15T23:31:00",
+            description="Bulk electronics procurement — no PO, no approval, 11pm Saturday",
+            payment_type="Corporate Card",
+            card_holder="Unknown",
+            department="Engineering",
+            is_shadow=True,
+        ))
+        db.commit()
+        print("[Seed] Headline transaction: $47,200 ShadowTech Solutions -- 11:31pm Saturday")
+
+        # ── Auto-score seeded transactions via ML detection engine ───────────
+        # Without this, risk_score = 0.0 and the Priority Queue shows nothing.
+        SEEDED_VENDORS = [
+            "FastParts Ltd", "QuickSupply Co", "RapidTools Inc",
+            "LocalHardware Store", "ShadowTech Solutions",
+        ]
+        print("[Seed] Running ML detection on seeded transactions...")
+        try:
+            from detection import run_detection
+            # Fetch the seeded transactions
+            seeded = db.query(Transaction).filter(
+                Transaction.vendor.in_(SEEDED_VENDORS),
+                Transaction.is_shadow == True,
+            ).all()
+            # run_detection uses the session to score and upsert ShadowPurchase rows
+            run_detection(db)
+            db.commit()
+            print(f"[Seed] Detection complete -- {len(seeded)} transactions scored")
+        except Exception as det_err:
+            print(f"[Seed] Detection pass skipped: {det_err}")
+            print("[Seed] Tip: start the app and hit POST /api/ml/retrain to score them")
+
+        db.close()
+        print("\n[Seed] All exhibition scenarios loaded and scored.")
+
+
+    except ImportError as e:
+        print(f"[Seed] Skipped DB seed (SQLAlchemy not available in this context): {e}")
+    except Exception as e:
+        import traceback
+        print(f"[Seed] Error during exhibition seed: {e}")
+        traceback.print_exc()
+
+
+if __name__ == "__main__":
+    _seed_exhibition_scenarios()
+

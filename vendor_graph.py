@@ -390,3 +390,76 @@ def _build_ring_explanation(
 
 # ── Singleton ─────────────────────────────────────────────────────────
 vendor_ring_detector = VendorRingDetector()
+
+
+# =============================================================================
+# F5: Supplier Network Graph (Tier 1/2/3 + Disruption Risk)
+# =============================================================================
+
+class SupplierNetworkGraph:
+    """
+    Builds a structured supply chain graph showing:
+      - Vendor tier (1=direct, 2=sub-supplier, 3=raw material)
+      - Which departments depend on each vendor
+      - Alternative vendors for each supplier
+      - Disruption score: how badly operations suffer if this vendor fails
+
+    Disruption formula:
+        score = (dependent_dept_count × 0.3) / max(alternative_count, 1)
+        capped at 1.0
+    """
+
+    def build(self, db) -> dict:
+        """
+        Build the full supplier network graph from the database.
+        Returns: {vendor_name: {tier, trust_score, risk_level, dependents, alternatives, disruption_score}}
+        """
+        from database import Vendor, Transaction
+
+        vendors = db.query(Vendor).all()
+
+        # Build dept → vendor usage map from transaction history
+        dept_vendor_pairs = (
+            db.query(Transaction.department, Transaction.vendor)
+            .filter(Transaction.vendor.isnot(None))
+            .group_by(Transaction.department, Transaction.vendor)
+            .all()
+        )
+
+        dependents: dict[str, set] = {}
+        for dept, vendor_name in dept_vendor_pairs:
+            if vendor_name:
+                dependents.setdefault(vendor_name, set()).add(dept)
+
+        graph = {}
+        for v in vendors:
+            alts = [
+                a.strip()
+                for a in (v.alternative_vendors or "").split(",")
+                if a.strip()
+            ]
+            vendor_deps = dependents.get(v.name, set())
+            graph[v.name] = {
+                "tier":              v.tier or 1,
+                "trust_score":       v.trust_score,
+                "risk_level":        v.risk_level,
+                "esg_score":         getattr(v, "esg_score", 50.0),
+                "carbon_rating":     getattr(v, "carbon_rating", "C"),
+                "dependents":        sorted(vendor_deps),
+                "alternatives":      alts,
+                "disruption_score":  self.disruption_score(vendor_deps, alts),
+            }
+        return graph
+
+    @staticmethod
+    def disruption_score(dependents: set, alternatives: list) -> float:
+        """
+        Higher score = more disruption if this vendor goes offline.
+        Max = 1.0 (many dependents, no alternatives).
+        """
+        score = (len(dependents) * 0.3) / max(len(alternatives), 1)
+        return round(min(score, 1.0), 3)
+
+
+# Singleton
+supplier_network_graph = SupplierNetworkGraph()

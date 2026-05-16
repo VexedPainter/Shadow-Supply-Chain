@@ -7,23 +7,44 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, D
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import datetime, os, csv, random
+import uuid as _uuid
 
 Base = declarative_base()
-DB_PATH = os.path.join(os.path.dirname(__file__), "shadow_supply.db")
-engine = create_engine(
-    f"sqlite:///{DB_PATH}", 
-    connect_args={"check_same_thread": False, "timeout": 30},
-    pool_size=10, 
-    max_overflow=20
+
+# ─── B5: Dynamic Database URL (SQLite for dev, PostgreSQL for production) ───
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    f"sqlite:///{os.path.join(os.path.dirname(__file__), 'shadow_supply.db')}"  # fallback for local dev
 )
+
+# Handle PostgreSQL URL format from cloud providers (Render, Railway, Heroku)
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+if "sqlite" in DATABASE_URL:
+    # SQLite-specific path extraction
+    DB_PATH = DATABASE_URL.replace("sqlite:///", "")
+    connect_args = {"check_same_thread": False, "timeout": 30}
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args=connect_args,
+        pool_size=10,
+        max_overflow=20
+    )
+else:
+    # PostgreSQL — no check_same_thread, use connection pooling
+    connect_args = {}
+    engine = create_engine(DATABASE_URL, connect_args=connect_args)
 
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL")
-    cursor.execute("PRAGMA synchronous=NORMAL")
-    cursor.execute("PRAGMA busy_timeout=5000")
-    cursor.close()
+    # Only apply SQLite PRAGMAs for SQLite connections
+    if "sqlite" in DATABASE_URL:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -37,6 +58,14 @@ class Vendor(Base):
     approved = Column(Boolean, default=False)
     avg_order = Column(Float, default=0)
     trust_score = Column(Float, default=50.0)  # 0-100 trust score
+    # F5: Supplier network graph fields
+    tier = Column(Integer, default=1)                   # 1=direct, 2=sub-supplier, 3=raw material
+    alternative_vendors = Column(String, default="")    # comma-separated backup vendor names
+    # F11: ESG compliance fields
+    esg_score = Column(Float, default=50.0)             # 0-100 sustainability score
+    carbon_rating = Column(String, default="C")         # A/B/C/D/F
+    sustainability_certified = Column(Boolean, default=False)
+    portal_token = Column(String, unique=True, default=lambda: str(_uuid.uuid4()))
 
 
 class Inventory(Base):
@@ -70,16 +99,20 @@ class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(String, primary_key=True)
     date = Column(String)
-    vendor = Column(String)
+    vendor = Column(String, index=True)        # indexed: PO matching scans by vendor
     amount = Column(Float)
     description = Column(String)
     payment_type = Column(String)  # Invoice, Corporate Card, Expense Claim
     card_holder = Column(String)
-    department = Column(String)
-    is_shadow = Column(Boolean, default=False)
+    department = Column(String, index=True)    # indexed: department-level risk queries
+    is_shadow = Column(Boolean, default=False, index=True)  # indexed: shadow filter is hot path
     matched_po_id = Column(String, nullable=True)
     ai_risk_score = Column(Float, default=0.0)
     ai_category = Column(String, nullable=True)
+    # B7: Multi-currency support
+    currency = Column(String, default="USD")           # Original transaction currency
+    amount_usd = Column(Float, nullable=True)          # Normalized to USD for ML scoring
+    exchange_rate = Column(Float, default=1.0)         # Rate applied at time of transaction
 
     # Relationship to shadow purchase
     shadow_purchase = relationship("ShadowPurchase", back_populates="transaction", uselist=False)
@@ -90,13 +123,13 @@ class ShadowPurchase(Base):
 
     # Core fields
     id = Column(Integer, primary_key=True, autoincrement=True)
-    transaction_id = Column(String, ForeignKey("transactions.id"), nullable=True)
+    transaction_id = Column(String, ForeignKey("transactions.id"), nullable=True, index=True)
     detected_at = Column(String)
     reason = Column(String)
     risk_score = Column(Float, default=0.0)
     confidence_score = Column(Float, default=1.0)      # System confidence in prediction
     data_quality_flag = Column(String, default="Good") # Good, Vague, Missing Data
-    status = Column(String, default="Pending")         # Pending, Resolved, Ignored
+    status = Column(String, default="Pending", index=True)         # Pending, Resolved, Ignored
     resolved_po_id = Column(String, nullable=True)
     item_category = Column(String, nullable=True)
 
@@ -108,13 +141,17 @@ class ShadowPurchase(Base):
     # Detection Layer & Bypass Link
     confirmed_shadow = Column(Boolean, default=False)
     false_positive = Column(Boolean, default=False)
-    needs_review = Column(Boolean, default=True)
+    needs_review = Column(Boolean, default=True, index=True)   # indexed: recalibration job filter
     bypassed_preventive = Column(Boolean, default=False)
     
     # Phase 3 - LP-01 Feedback fields
     reviewer_verdict = Column(String, nullable=True) # 'confirmed_shadow', 'false_positive', 'needs_review'
     reviewed_at = Column(String, nullable=True)
     reviewer_id = Column(String, nullable=True)
+
+    # LP-01 idempotency guard: set True once recalibration_job has applied this verdict to vendor trust.
+    # Persisted in DB so server restarts never cause double-application of feedback adjustments.
+    recalibration_applied = Column(Boolean, default=False, nullable=False)
 
     # Relationships
     transaction = relationship("Transaction", back_populates="shadow_purchase")
@@ -211,6 +248,62 @@ class AuditLog(Base):
     shadow_purchase = relationship("ShadowPurchase", back_populates="audit_log")
 
 
+# ─── B4: Role-Based Access Control ───────────────────────────────
+class UserRole(Base):
+    """Maps usernames to roles for RBAC enforcement."""
+    __tablename__ = "user_roles"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String, unique=True, nullable=False)
+    role = Column(String, nullable=False)  # "admin" | "analyst" | "auditor"
+    created_at = Column(String, nullable=True)
+
+# Role permission matrix — defines what each role can do
+ROLE_PERMISSIONS = {
+    "admin":   ["view_all", "resolve", "dismiss", "export", "retrain", "configure"],
+    "analyst": ["view_all", "resolve", "dismiss", "export"],
+    "auditor": ["view_all", "export"],  # Read-only + export, no state changes
+}
+
+
+
+# ─── F6: Vendor Contract Compliance ──────────────────────────────────
+class VendorContract(Base):
+    """Stores uploaded MSA/contract text for NLP compliance checking."""
+    __tablename__ = "vendor_contracts"
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    vendor_id     = Column(String, ForeignKey("vendors.id"), nullable=False)
+    contract_text = Column(Text, nullable=False)
+    uploaded_at   = Column(String)
+    active        = Column(Boolean, default=True)
+
+
+# ─── F7: Digital Twin / IoT Inventory Sync ───────────────────────────
+class InventoryItem(Base):
+    """IoT-synced inventory items with reorder automation."""
+    __tablename__ = "inventory_items"
+    id                  = Column(Integer, primary_key=True, autoincrement=True)
+    item_id             = Column(String, unique=True, nullable=False, index=True)
+    name                = Column(String)
+    quantity            = Column(Float, default=0)
+    reorder_point       = Column(Float, default=10)    # triggers auto PO draft below this
+    reorder_qty         = Column(Float, default=50)    # quantity to order on auto-draft
+    unit                = Column(String, default="units")
+    location            = Column(String, default="Warehouse A")
+    preferred_vendor_id = Column(String, ForeignKey("vendors.id"), nullable=True)
+    last_synced         = Column(String)               # ISO datetime of last IoT ping
+
+
+class PurchaseOrderDraft(Base):
+    """Auto-raised PO drafts for procurement team approval."""
+    __tablename__ = "purchase_order_drafts"
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    vendor_id   = Column(String, ForeignKey("vendors.id"), nullable=True)
+    item_name   = Column(String)
+    quantity    = Column(Float)
+    status      = Column(String, default="Draft")  # Draft, Approved, Rejected
+    created_at  = Column(String)
+    auto_raised = Column(Boolean, default=False)   # True = system-raised, not human
+
 
 class TrendMetric(Base):
     """Track trends over time for analytics."""
@@ -296,7 +389,6 @@ class EmergencyDecisionLog(Base):
     reason = Column(Text, nullable=True)                     # Human-readable explanation
     user_proceeded = Column(Boolean, nullable=True)          # Did user follow recommendation?
     user_action = Column(String, nullable=True)              # "followed" | "overridden"
-    estimated_cost_avoided = Column(Float, default=0.0)      # Feature B: Cost avoided
     logged_at = Column(String, nullable=False)               # ISO timestamp
     department = Column(String, nullable=True)               # Department making request
     severity = Column(String, default="safe")                # safe | caution | critical

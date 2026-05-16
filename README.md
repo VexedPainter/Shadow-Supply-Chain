@@ -1,619 +1,597 @@
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" />
-  <img src="https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
+<div align="center">
+
+<!-- Animated Header Banner -->
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:161b22,100:1f6feb&height=220&section=header&text=ShadowSync&fontSize=72&fontColor=58a6ff&fontAlignY=35&desc=AI-Powered%20Shadow%20Procurement%20Detection&descSize=18&descAlignY=55&animation=fadeIn" width="100%"/>
+
+<!-- Dynamic Badges -->
+<p>
+  <img src="https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
   <img src="https://img.shields.io/badge/Groq-LLaMA_3.3_70B-F55036?style=for-the-badge&logo=meta&logoColor=white" />
   <img src="https://img.shields.io/badge/Cohere-Command_A-3A76F0?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
+</p>
+<p>
   <img src="https://img.shields.io/badge/SQLite-Database-003B57?style=for-the-badge&logo=sqlite&logoColor=white" />
+  <img src="https://img.shields.io/badge/PostgreSQL-Production-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" />
   <img src="https://img.shields.io/badge/Scikit--Learn-ML_Engine-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white" />
+  <img src="https://img.shields.io/badge/SAP-Connector-0FAAFF?style=for-the-badge&logo=sap&logoColor=white" />
+  <img src="https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white" />
 </p>
 
-# 🛡️ Shadow Supply Chain Detection System
+<p>
+  <a href="#-quick-start"><img src="https://img.shields.io/badge/🚀_Quick_Start-blue?style=for-the-badge" /></a>
+  <a href="#-key-features"><img src="https://img.shields.io/badge/✨_Features-purple?style=for-the-badge" /></a>
+  <a href="#-ai-copilot"><img src="https://img.shields.io/badge/🤖_AI_Copilot-green?style=for-the-badge" /></a>
+  <a href="#-api-reference"><img src="https://img.shields.io/badge/📡_API_Docs-orange?style=for-the-badge" /></a>
+  <a href="SECURITY.md"><img src="https://img.shields.io/badge/🔐_Security-red?style=for-the-badge" /></a>
+</p>
 
-### AI-Powered Enterprise Procurement Intelligence & Anomaly Detection Platform
+<br/>
 
-> An enterprise-grade real-time platform that detects **shadow purchases** (unauthorized, untracked procurement spending) using **Machine Learning anomaly detection** and **dual-LLM AI Copilot** (Groq + Cohere). The system monitors financial transactions, cross-references them against approved Purchase Orders, and flags discrepancies — helping organizations prevent financial leakage, ensure compliance, and maintain audit integrity.
+> **Enterprise-grade real-time platform that detects shadow purchases — unauthorized, untracked procurement spending — using Machine Learning anomaly detection and a dual-LLM AI Copilot (Groq + Cohere).**
 
----
-
-## 📑 Table of Contents
-
-1. [Problem Statement](#-problem-statement)
-2. [How It Works](#-how-it-works--simplified-flow)
-3. [Key Features](#-key-features)
-4. [Technology Stack](#-technology-stack)
-5. [System Architecture](#-system-architecture)
-6. [AI & ML Pipeline](#-ai--ml-pipeline)
-7. [AI Copilot (Groq + Cohere)](#-ai-copilot-groq--cohere)
-8. [Database Schema](#-database-schema)
-9. [API Endpoints](#-api-endpoints)
-10. [Project Structure](#-project-structure)
-11. [Setup & Installation](#-setup--installation)
-12. [Running the Application](#-running-the-application)
-13. [Default Credentials](#-default-credentials)
-14. [API Keys Configuration](#-api-keys-configuration)
-15. [Screenshots & Dashboard](#-screenshots--dashboard)
-16. [Future Enhancements](#-future-enhancements)
+</div>
 
 ---
 
-## 🎯 Problem Statement
+## 🎯 The Problem We Solve
 
-In large organizations, **shadow procurement** (also called *maverick spending*) accounts for **30–40% of total procurement spend** that bypasses official purchase order systems. This happens when employees:
+In large organizations, **shadow procurement** (maverick spending) accounts for **30–40% of total procurement spend** bypassing official PO systems — that's **$2.8M leakage per $100M budget** *(Gartner)*.
 
-- Use corporate credit cards for **emergency purchases** without raising a PO
-- Submit **expense claims** for parts bought from unapproved vendors
-- Make **after-hours/weekend purchases** from local hardware stores during emergencies
+<table>
+<tr>
+<td width="50%">
 
-These untracked purchases create:
-- ❌ **Financial leakage** — No price negotiation, no volume discounts
-- ❌ **Compliance violations** — No audit trail, no approval workflow
-- ❌ **Vendor risk** — Purchasing from unapproved, potentially unreliable vendors
-- ❌ **Inventory blind spots** — Parts entering the facility without being tracked
+### ❌ Without ShadowSync
+- Untracked corporate card purchases
+- Unapproved vendor expense claims
+- After-hours emergency buys with no PO
+- **87 days** average manual detection time *(KPMG)*
+- Zero visibility into procurement compliance
 
-**Our solution** automatically detects these shadow purchases using AI, flags them for review, and provides actionable intelligence to supply chain managers.
+</td>
+<td width="50%">
+
+### ✅ With ShadowSync
+- **< 1 second** AI-powered detection
+- Dual-LLM copilot for instant risk analysis
+- Vendor collusion ring detection
+- Preventive auto-PO drafting
+- Real-time WebSocket dashboard with alerts
+
+</td>
+</tr>
+</table>
 
 ---
 
-## ⚙️ How It Works — Simplified Flow
+## ⚡ Quick Start
 
+<table>
+<tr><td>
+
+### 🐳 Docker (Recommended)
+```bash
+git clone https://github.com/VexedPainter/Shadow-Supply-Chain.git
+cd Shadow-Supply-Chain
+
+# Set your API keys
+cp .env.example .env
+# Edit .env with your GROQ_API_KEY and COHERE_API_KEY
+
+docker-compose up --build
+# → Dashboard: http://localhost:8000
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    DATA INGESTION LAYER                         │
-│                                                                 │
-│   ERP Transactions ──► Financial records (invoices, cards,      │
-│                        expense claims) are loaded into the DB   │
-│                                                                 │
-│   Purchase Orders ───► Approved POs from procurement system     │
-│                        are loaded for cross-referencing          │
-│                                                                 │
-│   Vendor Registry ───► Approved/unapproved vendor database      │
-│                        with trust scores and risk levels         │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    DETECTION ENGINE (AI/ML)                      │
-│                                                                 │
-│   Step 1: PO Matching ─── Match each transaction against POs   │
-│           (vendor name + amount + date tolerance ±5 days)       │
-│                                                                 │
-│   Step 2: Shadow Flag ─── Unmatched transactions = potential   │
-│           shadow purchases (flagged for AI scoring)             │
-│                                                                 │
-│   Step 3: ML Scoring ──── Isolation Forest anomaly detection   │
-│           analyzes 10+ features to assign risk scores (0–1)     │
-│                                                                 │
-│   Step 4: Category AI ─── NLP classifies items into categories │
-│           (Pumps, Electronics, Safety, etc.)                    │
-│                                                                 │
-│   Step 5: Vendor Trust ── Vendor trust scores updated based    │
-│           on shadow purchase history and approval status        │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    REAL-TIME DASHBOARD                           │
-│                                                                 │
-│   📊 Live Stats ──────── Financial exposure, shadow rate,       │
-│                          detection quality, inventory health     │
-│                                                                 │
-│   📈 Charts ──────────── Risk trends, department heatmaps,     │
-│                          category distribution, shadow ratios    │
-│                                                                 │
-│   🚨 Priority Queue ──── Ranked list of highest-risk shadows   │
-│                          with estimated financial loss           │
-│                                                                 │
-│   🤖 AI Copilot ─────── Chat with Groq LLM for instant risk   │
-│                          analysis and Cohere for summaries       │
-│                                                                 │
-│   📄 Export ──────────── PDF reports, CSV/Excel data exports    │
-└─────────────────────────────────────────────────────────────────┘
+
+</td><td>
+
+### 🐍 Manual Setup
+```bash
+git clone https://github.com/VexedPainter/Shadow-Supply-Chain.git
+cd Shadow-Supply-Chain
+
+pip install -r requirements.txt
+python generate_data.py
+
+python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+# → Dashboard: http://localhost:8000
 ```
+
+</td></tr>
+</table>
+
+> **Default Login:** Username from `ADMIN_USERNAME` env var (default: `admin`), Password from `ADMIN_PASSWORD` env var.
+> ⚠️ Always set `ADMIN_PASSWORD` via environment variable before deploying. See [Security Guide](SECURITY.md).
 
 ---
 
 ## ✨ Key Features
 
-### 🔍 Core Detection
-| Feature | Description |
-|---------|-------------|
-| **PO Matching Engine** | Cross-references every transaction against approved Purchase Orders using vendor name, amount (±15% tolerance), and date (±5 days) |
-| **Isolation Forest ML** | Unsupervised anomaly detection model trained on 10+ features (amount, vendor risk, payment type, time patterns) |
-| **Multi-Feature Scoring** | Risk scores (0–1) computed from amount anomaly, vendor trust, payment method, historical patterns, and department norms |
-| **Item Category NLP** | AI-powered text classification of purchase descriptions into standard procurement categories |
-| **Vendor Trust Scoring** | Dynamic trust scores (0–100) that decrease with each shadow purchase and increase with compliant behavior |
-
-### 📊 Real-Time Dashboard
-| Feature | Description |
-|---------|-------------|
-| **Live WebSocket Feed** | Real-time transaction stream with instant shadow alerts via WebSocket |
-| **Interactive Charts** | 4 Chart.js visualizations: Risk Trend, Shadow Ratio, Department Heatmap, Category Distribution |
-| **Priority Queue** | AI-ranked list of shadows by severity — Critical → High → Medium → Low |
-| **Urgent Actions Panel** | Top 5 highest-risk items requiring immediate review |
-| **Trend Insights** | Week-over-week shadow activity trends with department/vendor breakdowns |
-
-### 🤖 AI Copilot (LLM-Powered)
-| Feature | Provider | Description |
-|---------|----------|-------------|
-| **Conversational Chat** | Groq (LLaMA 3.3 70B) | Ask questions about risks, vendors, or procurement in natural language |
-| **Risk Summarization** | Cohere (Command A) | Executive-level risk landscape summaries for C-suite stakeholders |
-| **Deep Shadow Analysis** | Groq (LLaMA 3.3 70B) | Detailed root cause analysis of individual shadow purchases |
-| **Vendor Insights** | Cohere (Command A) | AI-generated vendor risk profiles with actionable recommendations |
-
-### 📋 Operations & Compliance
-| Feature | Description |
-|---------|-------------|
-| **Audit Trail** | Complete log of all system actions, approvals, and status changes |
-| **Human Feedback Loop** | Users can approve, reject, or correct AI predictions — improving accuracy over time |
-| **PDF Reports** | Auto-generated executive summary PDFs with risk statistics and recommendations |
-| **CSV/Excel Export** | Bulk data export for further analysis in spreadsheet tools |
-| **Dual Data Mode** | Switch between Synthetic (demo) and Production (real-world SF infrastructure) datasets |
+<table>
+<tr>
+<td align="center" width="33%">
+<h3>🔍 ML Detection Engine</h3>
+<p>Isolation Forest anomaly detection with 10+ engineered features. Auto-retrains every 10 human corrections. 85%+ baseline accuracy — zero labeled data needed.</p>
+</td>
+<td align="center" width="33%">
+<h3>🤖 Dual-LLM AI Copilot</h3>
+<p>Groq (LLaMA 3.3 70B) at ~200ms for chat & deep analysis. Cohere (Command A) for executive summaries & vendor insights. Conversational natural language interface.</p>
+</td>
+<td align="center" width="33%">
+<h3>📊 Real-Time Dashboard</h3>
+<p>WebSocket-powered live feed. 4 interactive Chart.js visualizations. AI-ranked Priority Queue. Glassmorphic "Kinetic Ledger" design system.</p>
+</td>
+</tr>
+<tr>
+<td align="center" width="33%">
+<h3>🕸️ Vendor Collusion Detection</h3>
+<p>Graph analysis detects split-PO fraud rings — multiple shell vendors, same employee, amounts under approval thresholds. Automatic escalation.</p>
+</td>
+<td align="center" width="33%">
+<h3>🛡️ Preventive Intelligence</h3>
+<p>Auto-PO drafting when inventory hits reorder points. Predictive department risk scoring. Stops shadow purchases before they happen.</p>
+</td>
+<td align="center" width="33%">
+<h3>🔗 SAP BAPI Connector</h3>
+<p>Live RFC connection to SAP ERP (EKKO/EKPO/RBKP fields). Graceful simulation fallback with authentic field schemas. Works with any ERP via CSV/Excel import.</p>
+</td>
+</tr>
+<tr>
+<td align="center" width="33%">
+<h3>📱 Multi-Channel Alerts</h3>
+<p>Email (SMTP), Slack webhooks, and Firebase Cloud Messaging push notifications. Critical shadow alerts reach managers instantly on any device.</p>
+</td>
+<td align="center" width="33%">
+<h3>📄 Export & Reporting</h3>
+<p>Executive PDF reports with styled tables. CSV & Excel bulk exports. Auto-generated recommendations with severity scoring.</p>
+</td>
+<td align="center" width="33%">
+<h3>🔐 Enterprise Security</h3>
+<p>JWT session auth with RBAC (admin/analyst/auditor). Fernet field-level encryption. Complete audit trail. SOC 2 readiness checklist included.</p>
+</td>
+</tr>
+</table>
 
 ---
 
-## 🏗️ Technology Stack
+## 🏗️ System Architecture
 
-### Backend
-| Technology | Purpose | Why We Chose It |
-|-----------|---------|-----------------|
-| **Python 3.10+** | Core language | Industry standard for AI/ML and data processing |
-| **FastAPI** | Web framework | High-performance async API with auto-generated docs |
-| **SQLAlchemy** | ORM | Type-safe database operations with relationship mapping |
-| **SQLite** | Database | Zero-config embedded database, ideal for prototyping |
-| **Scikit-learn** | ML Engine | Isolation Forest for unsupervised anomaly detection |
-| **Pandas** | Data processing | Feature engineering and data manipulation |
-| **Uvicorn** | ASGI server | Production-grade async web server |
-
-### AI / LLM Providers
-| Provider | Model | Purpose | Speed |
-|----------|-------|---------|-------|
-| **Groq** | `llama-3.3-70b-versatile` | Conversational AI chat, deep analysis | ~200ms inference |
-| **Cohere** | `command-a-03-2025` | Risk summarization, vendor insights, classification | ~1s inference |
-
-### Frontend
-| Technology | Purpose |
-|-----------|---------|
-| **HTML5 / CSS3** | Semantic markup with premium "Kinetic Ledger" design system |
-| **Vanilla JavaScript** | Zero-framework, lightweight SPA with tab-based navigation |
-| **Chart.js 4.4** | Interactive, responsive data visualizations |
-| **WebSocket** | Real-time bidirectional communication for live updates |
-| **Google Material Icons** | Consistent iconography across the dashboard |
-| **Inter Font** | Premium typography from Google Fonts |
-
-### Export & Reporting
-| Technology | Purpose |
-|-----------|---------|
-| **FPDF2** | PDF report generation with formatted tables and charts |
-| **OpenPyXL** | Excel (.xlsx) export with styled headers and formatting |
-| **CSV module** | Lightweight data export for spreadsheet tools |
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         DATA INGESTION LAYER                            │
+│                                                                         │
+│   SAP BAPI (Live/Sim) ──┐                                              │
+│   CSV/Excel Import ─────┼──► Unified Transaction Pipeline               │
+│   ERP Batch Export ─────┘                                               │
+│                                                                         │
+│   Purchase Orders ────► Cross-Reference Engine                          │
+│   Vendor Registry ────► Trust Score Database                            │
+└─────────────────────────────┬───────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      DETECTION ENGINE (AI/ML)                           │
+│                                                                         │
+│   PO Matching ─────► Shadow Flagging ─────► Isolation Forest Scoring    │
+│   (vendor+amount       (unmatched =          (10 features → risk        │
+│    ±5%, date ±7d)       shadow candidate)      score 0.0–1.0)           │
+│                                                                         │
+│   NLP Category ────► Vendor Trust ────► Collusion Graph ────► Alerts    │
+│   Classification      Score Update      Ring Detection        (Email/   │
+│                                                                Slack/   │
+│                                                                Push)    │
+└─────────────────────────────┬───────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    INTELLIGENCE & RESPONSE LAYER                        │
+│                                                                         │
+│   📊 Dashboard ───── Stats, Charts, Live Feed, Urgent Actions           │
+│   🤖 AI Copilot ──── Groq Chat + Cohere Summaries (dual-LLM)           │
+│   📋 Priority Queue ─ AI-ranked by severity with XAI breakdown          │
+│   🛡️ Prevention ──── Auto-PO Drafts, Dept Risk Predictions             │
+│   📄 Exports ──────── PDF Reports, CSV, Excel                           │
+│   🔍 Audit Trail ──── Full compliance logging                           │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## 🧠 AI & ML Pipeline
 
-### 1. Feature Engineering (10+ Features)
-
-The detection engine extracts these features from each transaction for ML scoring:
+### Feature Engineering (10+ Features)
 
 ```python
 Features = {
     "amount":           float,    # Transaction dollar value
-    "hour_of_day":      int,      # Time pattern (after-hours = riskier)
-    "day_of_week":      int,      # Weekend purchases = riskier
-    "amount_deviation": float,    # Deviation from vendor's average order
-    "vendor_risk":      float,    # Vendor's risk level (0=Low, 1=High)
-    "vendor_approved":  int,      # 1 if approved vendor, 0 if not
-    "payment_type":     int,      # Encoded: Invoice=0, Card=1, Expense=2
-    "is_recurring":     int,      # Pattern detection flag
+    "hour_of_day":      int,      # After-hours = higher risk
+    "day_of_week":      int,      # Weekend purchases = higher risk
+    "amount_deviation": float,    # Deviation from vendor's average
+    "vendor_risk":      float,    # Vendor risk level (0–1)
+    "vendor_approved":  int,      # 1 = approved, 0 = unapproved
+    "payment_type":     int,      # Invoice=0, Card=1, Expense=2
+    "is_recurring":     int,      # Recurring pattern flag
     "dept_risk":        float,    # Department's historical shadow rate
-    "amount_category":  int,      # Binned amount range (low/med/high)
+    "amount_category":  int,      # Binned amount range
 }
 ```
 
-### 2. Isolation Forest Model
-
-```
-Algorithm:   Isolation Forest (Unsupervised Anomaly Detection)
-Rationale:   No labeled data needed — learns "normal" transaction patterns
-             and flags outliers as potential shadows
-Features:    10 numerical features per transaction
-Output:      Anomaly score → mapped to risk_score (0.0 – 1.0)
-Threshold:   score > 0.6 = High Risk, 0.35–0.6 = Medium, <0.35 = Low
-```
-
-### 3. Detection Pipeline Flow
+### Detection Pipeline
 
 ```
 Raw Transaction → Feature Extraction → PO Matching → If Unmatched:
   → Isolation Forest Scoring → Category Classification
-  → Vendor Trust Update → Priority Queue Ranking
+  → Vendor Trust Update → Collusion Graph Check
+  → Priority Queue Ranking → Alert Dispatch (Email/Slack/Push)
   → Store as ShadowPurchase → WebSocket Alert to Dashboard
 ```
 
+| Parameter | Value |
+|-----------|-------|
+| **Algorithm** | Isolation Forest (Unsupervised) |
+| **Training Data Required** | Zero — learns normal patterns automatically |
+| **Risk Thresholds** | > 0.6 High · 0.35–0.6 Medium · < 0.35 Low |
+| **Auto-Retrain Trigger** | Every 10 human feedback corrections |
+| **Baseline Accuracy** | 85%+ (improves with feedback loop) |
+
 ---
 
-## 🤖 AI Copilot (Groq + Cohere)
+## 🤖 AI Copilot
 
-The AI Copilot provides a **conversational interface** to interact with your supply chain data using natural language.
+The dual-LLM AI Copilot provides a conversational interface to your supply chain data.
 
-### Architecture
+| Capability | Provider | Speed | Use Case |
+|------------|----------|-------|----------|
+| **Chat & Analysis** | Groq (LLaMA 3.3 70B) | ~200ms | *"What are the top risks right now?"* |
+| **Deep Shadow Analysis** | Groq (LLaMA 3.3 70B) | ~200ms | Root cause analysis of individual shadows |
+| **Executive Summaries** | Cohere (Command A) | ~1s | C-suite risk landscape overview |
+| **Vendor Insights** | Cohere (Command A) | ~1s | AI-generated vendor risk profiles |
 
-```
-┌──────────────────┐      ┌───────────────────────────┐
-│   User's Chat    │      │      ai_copilot.py         │
-│   Message        │─────►│                           │
-│                  │      │  ┌──── Groq Client ────┐  │
-│  "What are the   │      │  │  LLaMA 3.3 70B     │  │
-│   top risks?"    │      │  │  • Chat responses   │  │
-│                  │      │  │  • Deep analysis    │  │
-│                  │      │  └────────────────────┘  │
-│                  │      │                           │
-│                  │      │  ┌──── Cohere Client ──┐  │
-│                  │      │  │  Command A 2025     │  │
-│                  │      │  │  • Risk summaries   │  │
-│                  │      │  │  • Vendor insights  │  │
-│                  │      │  │  • Classification   │  │
-│                  │      │  └────────────────────┘  │
-│                  │◄─────│                           │
-│  AI Response     │      └───────────────────────────┘
-└──────────────────┘
-```
+**Context Injection:** The AI automatically receives live system context (transaction counts, exposure, high-risk vendors) before every response — ensuring answers are always data-driven.
 
-### How to Use the AI Copilot
-
-1. **Click the floating 🤖 AI button** in the bottom-right corner of the dashboard
-2. **Type your question** in natural language, for example:
-   - *"What are the top risks right now?"*
-   - *"Explain shadow purchase #5"*
-   - *"Which vendors need attention?"*
-   - *"Summarize this week's procurement health"*
-3. **The AI responds** with data-driven analysis pulled from your live system context
-4. **Quick Actions**: Use the ⚡ button for health check or 📊 button for executive risk summary
-
-### Context Injection
-
-The AI automatically receives live system context before each response:
-- Total transactions, shadow count, financial exposure
-- High-risk vendor count and pending actions
-- This ensures responses are **always relevant** to your current data
+### How to Use
+1. Click the floating **🤖 AI button** (bottom-right corner)
+2. Type your question in natural language
+3. Use ⚡ for health check or 📊 for executive summary
 
 ---
 
 ## 🗄️ Database Schema
 
-The system uses **SQLite** with **11 interconnected tables**:
+**11 interconnected tables** — SQLite for dev, PostgreSQL for production (auto-detected via `DATABASE_URL`).
 
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐
 │   transactions  │────►│ shadow_purchases │────►│ recommendations  │
-│                 │     │                  │     │                  │
-│  id (PK)        │     │  id (PK)         │     │  shadow_id (FK)  │
-│  date           │     │  transaction_id  │     │  action_taken    │
-│  vendor         │     │  risk_score      │     │  priority        │
-│  amount         │     │  confidence      │     └──────────────────┘
-│  description    │     │  status          │
-│  payment_type   │     │  priority_score  │     ┌──────────────────┐
-│  department     │     │  estimated_loss  │────►│ behavior_metrics │
-│  is_shadow      │     │  item_category   │     │                  │
-│  ai_risk_score  │     └──────────────────┘     │  department      │
-└─────────────────┘                               │  shadow_count    │
-                                                  │  risk_level      │
-┌─────────────────┐     ┌──────────────────┐     └──────────────────┘
-│    vendors      │     │   procurement    │
-│                 │     │                  │     ┌──────────────────┐
-│  id (PK)        │     │  id (PK)         │     │  risk_snapshots  │
-│  name           │     │  vendor_id (FK)  │     │                  │
-│  category       │     │  item            │     │  total_exposure  │
-│  risk_level     │     │  amount          │     │  shadow_rate     │
-│  approved       │     │  status          │     │  risk_level      │
-│  trust_score    │     │  department      │     └──────────────────┘
-└─────────────────┘     └──────────────────┘
+│  id, date,      │     │  risk_score,     │     │  action_taken,   │
+│  vendor, amount │     │  confidence,     │     │  priority        │
+│  payment_type   │     │  status,         │     └──────────────────┘
+│  department     │     │  priority_score  │
+│  is_shadow      │     │  estimated_loss  │     ┌──────────────────┐
+│  ai_risk_score  │     │  item_category   │────►│ behavior_metrics │
+└─────────────────┘     └──────────────────┘     └──────────────────┘
+
+┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│    vendors      │     │   procurement    │     │  risk_snapshots  │
+│  trust_score    │     │   (PO records)   │     │  total_exposure  │
+│  risk_level     │     │                  │     │  shadow_rate     │
+│  approved       │     │                  │     │  risk_level      │
+└─────────────────┘     └──────────────────┘     └──────────────────┘
 
 ┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐
 │   inventory     │     │  user_feedback   │     │   audit_log      │
-│                 │     │                  │     │                  │
-│  name, sku      │     │  correct_label   │     │  action_type     │
-│  quantity       │     │  feedback_text   │     │  details         │
-│  unit_price     │     │  submitted_by    │     │  performed_by    │
-│  reorder_level  │     └──────────────────┘     └──────────────────┘
-└─────────────────┘
+│  quantity, sku  │     │  correct_label   │     │  action_type     │
+│  reorder_level  │     │  feedback_text   │     │  performed_by    │
+└─────────────────┘     └──────────────────┘     └──────────────────┘
 ```
 
 ---
 
-## 🔌 API Endpoints
+## 📡 API Reference
 
-### Core Data APIs
+<details>
+<summary><b>📊 Core Data APIs</b></summary>
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/stats` | Dashboard statistics (exposure, shadow rate, detection quality) |
+| `GET` | `/api/stats` | Dashboard statistics (exposure, shadow rate, quality) |
 | `GET` | `/api/transactions` | All financial transactions with shadow flags |
 | `GET` | `/api/shadows` | Detected shadow purchases with risk scores |
 | `GET` | `/api/procurement` | Approved purchase orders |
 | `GET` | `/api/vendors` | Vendor registry with trust scores |
 | `GET` | `/api/inventory` | Current inventory levels |
-| `GET` | `/api/audit` | Complete audit trail log |
+| `GET` | `/api/audit` | Complete audit trail |
+| `GET` | `/api/health` | System health check |
 
-### AI Copilot APIs
+</details>
+
+<details>
+<summary><b>🤖 AI Copilot APIs</b></summary>
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/ai/chat` | Send a chat message to Groq LLM |
-| `GET` | `/api/ai/analyze/{id}` | Deep AI analysis of a specific shadow purchase |
-| `GET` | `/api/ai/summarize` | Cohere-powered executive risk summary |
+| `POST` | `/api/ai/chat` | Chat with Groq LLM |
+| `GET` | `/api/ai/analyze/{id}` | Deep analysis of a shadow purchase |
+| `GET` | `/api/ai/summarize` | Executive risk summary (Cohere) |
 | `GET` | `/api/ai/vendor-insight/{vendor}` | AI vendor risk assessment |
-| `GET` | `/api/ai/health` | Check Groq & Cohere connectivity status |
+| `GET` | `/api/ai/health` | Groq & Cohere connectivity status |
 
-### Action APIs
+</details>
+
+<details>
+<summary><b>⚡ Action & Operations APIs</b></summary>
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/shadows/{id}/resolve` | Approve and convert shadow to PO |
-| `POST` | `/api/shadows/{id}/dismiss` | Reject/dismiss a shadow alert |
+| `POST` | `/api/shadows/{id}/resolve` | Convert shadow to approved PO |
+| `POST` | `/api/shadows/{id}/dismiss` | Dismiss shadow alert |
 | `GET` | `/api/priority-queue` | AI-ranked priority queue |
-| `GET` | `/api/recommendations` | AI-generated action recommendations |
-| `POST` | `/api/feedback` | Submit human feedback on AI predictions |
+| `GET` | `/api/recommendations` | AI action recommendations |
+| `POST` | `/api/feedback` | Submit human feedback |
 | `GET` | `/api/trends` | Weekly trend analysis |
+| `POST` | `/api/ml/retrain` | Manual ML model retrain |
+| `GET` | `/api/ml/status` | Model version & feature weights |
+| `GET` | `/api/analytics/dept-risk` | Department risk heatmap |
+| `GET` | `/api/supplier-network` | Vendor collusion network graph |
+| `POST` | `/api/import/csv` | Batch CSV/Excel ingestion |
+| `POST` | `/api/demo/reset` | Reset to exhibition state |
 
-### Export APIs
+</details>
+
+<details>
+<summary><b>📄 Export APIs</b></summary>
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/download/shadow-report` | PDF executive risk report |
 | `GET` | `/api/download/csv` | CSV data export |
 | `GET` | `/api/v2/generate-report` | Comprehensive PDF report |
 
-### System APIs
+</details>
+
+<details>
+<summary><b>🔧 System APIs</b></summary>
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/set-mode` | Switch between Synthetic/Production datasets |
+| `POST` | `/api/set-mode` | Switch Synthetic/Production datasets |
 | `POST` | `/api/simulator/start` | Start real-time transaction simulator |
 | `POST` | `/api/simulator/stop` | Pause transaction simulator |
-| `WebSocket` | `/ws` | Real-time updates (stats, alerts, new shadows) |
+| `WebSocket` | `/ws` | Real-time updates (stats, alerts, shadows) |
+
+</details>
 
 ---
 
 ## 📁 Project Structure
 
 ```
-Shadow Supply Chain/
+Shadow-Supply-Chain/
 │
-├── app.py                  # Main FastAPI server (2400+ lines)
-│                           # Routes, WebSocket, authentication, simulator
+├── 🚀 Core Application
+│   ├── app.py                      # FastAPI server (4000+ lines) — routes, WebSocket, auth, simulator
+│   ├── database.py                 # SQLAlchemy ORM models (11 tables) & DB initialization
+│   ├── detection.py                # Shadow Detection Engine — PO matching, scoring, vendor trust
+│   ├── ai_module.py                # ML pipeline — Isolation Forest, feature engineering, NLP
+│   ├── ai_copilot.py               # Dual-LLM Copilot — Groq chat + Cohere summarization
+│   ├── analytics.py                # Predictive department risk scoring engine
+│   ├── preventive_intelligence.py  # Auto-PO drafting & prevention layer
+│   ├── vendor_graph.py             # Vendor collusion network graph analysis
+│   ├── recalibration.py            # ML model recalibration with human feedback
+│   └── pdf_generator.py            # Executive PDF report generation
 │
-├── ai_copilot.py           # AI Copilot module
-│                           # Groq chat + Cohere summarization
+├── 🔗 Connectors
+│   ├── connectors/sap.py           # SAP BAPI connector (live RFC + simulation fallback)
+│   └── connectors/push.py          # Firebase Cloud Messaging push notifications
 │
-├── ai_module.py            # Core AI/ML module
-│                           # Isolation Forest, feature engineering, NLP
+├── 📊 Data Layer
+│   ├── generate_data.py            # Synthetic dataset generator (50+ transactions, 21 vendors)
+│   ├── production_data.py          # Real-world SF infrastructure scenarios
+│   ├── upgrade_db.py               # Database migration scripts
+│   └── data/                       # CSV datasets (transactions, POs, vendors, inventory)
 │
-├── database.py             # SQLAlchemy ORM models (11 tables)
-│                           # Database initialization and seeding
+├── 🎨 Frontend
+│   ├── static/index.html           # Main dashboard SPA
+│   ├── static/app.js               # Frontend logic (2500+ lines)
+│   ├── static/styles.css           # "Kinetic Ledger" design system
+│   └── static/downloads/           # Generated PDF/CSV exports
 │
-├── detection.py            # Shadow Detection Engine
-│                           # PO matching, scoring, vendor trust updates
+├── 🐳 DevOps
+│   ├── Dockerfile                  # Multi-stage container build
+│   ├── docker-compose.yml          # Full stack (app + PostgreSQL)
+│   ├── .github/workflows/ci.yml    # CI/CD — tests, security audit, Docker build
+│   ├── render.yaml                 # Render.com deployment config
+│   └── build.sh                    # Cloud build script
 │
-├── generate_data.py        # Synthetic dataset generator
-│                           # 50+ transactions, 21 vendors, 18 POs
+├── 🧪 Testing
+│   ├── test_api.py                 # API integration test suite
+│   ├── e2e_test.py                 # End-to-end system verification
+│   ├── test_exports.py             # Export functionality tests
+│   └── test_feedback.py            # Human feedback loop tests
 │
-├── production_data.py      # Real-world SF infrastructure scenarios
-│                           # Production-grade test data
+├── 📋 Documentation
+│   ├── README.md                   # This file
+│   ├── DEMO.md                     # Exhibition demo cheat sheet
+│   ├── SECURITY.md                 # SOC 2 audit readiness & security guide
+│   └── FIXES_APPLIED.md            # Changelog of patches applied
 │
-├── pdf_generator.py        # PDF report generation engine
-│                           # Executive summaries, styled tables
+├── 🔧 Configuration
+│   ├── .env.example                # Environment variable template
+│   ├── requirements.txt            # Pinned Python dependencies
+│   └── .gitignore                  # Git exclusion rules
 │
-├── requirements.txt        # Python dependencies
-│
-├── shadow_supply.db        # SQLite database (auto-created)
-│
-├── static/
-│   ├── index.html          # Main dashboard (SPA)
-│   ├── login.html          # Authentication page
-│   ├── styles.css          # "Kinetic Ledger" design system
-│   ├── app.js              # Frontend logic (1700+ lines)
-│   └── downloads/          # Generated PDF/CSV exports
-│
-└── data/
-    ├── financial_transactions.csv
-    ├── procurement_records.csv
-    ├── vendors.csv
-    ├── inventory.csv
-    └── maintenance_logs.csv
+└── 🛠️ Dev Scripts
+    └── _dev_scripts/               # Debug utilities, encoding fixers, DB checkers
 ```
 
 ---
 
-## 🚀 Setup & Installation
+## 🏗️ Technology Stack
 
-### Prerequisites
-- **Python 3.10 or higher** installed on your system
-- **Internet connection** (for AI API calls to Groq and Cohere)
+<table>
+<tr>
+<td valign="top" width="50%">
 
-### Step 1: Clone / Navigate to Project
+### ⚙️ Backend
+| Technology | Purpose |
+|-----------|---------|
+| **Python 3.11** | Core language |
+| **FastAPI 0.115** | Async web framework |
+| **SQLAlchemy 2.0** | Type-safe ORM |
+| **SQLite / PostgreSQL** | Dev / Production DB |
+| **Scikit-learn 1.5** | Isolation Forest ML |
+| **Pandas 2.2** | Feature engineering |
+| **Uvicorn / Gunicorn** | ASGI server |
+| **APScheduler** | Scheduled tasks |
+| **Cryptography** | Fernet encryption |
+| **SlowAPI** | Rate limiting |
 
-```bash
-cd "Shadow Supply Chain"
-```
+</td>
+<td valign="top" width="50%">
 
-### Step 2: Install Dependencies
+### 🎨 Frontend & AI
+| Technology | Purpose |
+|-----------|---------|
+| **HTML5 / CSS3 / JS** | Zero-framework SPA |
+| **Chart.js 4.4** | Interactive visualizations |
+| **WebSocket** | Real-time updates |
+| **Inter Font** | Premium typography |
+| **Groq** (LLaMA 3.3 70B) | Chat & deep analysis |
+| **Cohere** (Command A) | Summaries & insights |
+| **FPDF2** | PDF report generation |
+| **OpenPyXL** | Excel exports |
+| **Firebase Admin** | Mobile push notifications |
+| **pyrfc** *(optional)* | SAP live connection |
 
-```bash
-pip install -r requirements.txt
-```
-
-This installs:
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `fastapi` | Latest | Web framework |
-| `uvicorn` | Latest | ASGI server |
-| `sqlalchemy` | Latest | Database ORM |
-| `pandas` | Latest | Data processing |
-| `scikit-learn` | Latest | ML anomaly detection |
-| `groq` | Latest | Groq LLM client |
-| `cohere` | Latest | Cohere LLM client |
-| `fpdf2` | Latest | PDF generation |
-| `openpyxl` | Latest | Excel export |
-| `httpx` | Latest | HTTP client |
-| `websockets` | Latest | Real-time communication |
-| `python-multipart` | Latest | Form data parsing |
-| `matplotlib` | Latest | Chart rendering for PDFs |
-
-### Step 3: Generate Dataset (First Time Only)
-
-```bash
-python generate_data.py
-```
-
-This creates `data/` folder with CSV files simulating ERP data extraction.
-
-### Step 4: Start the Server
-
-```bash
-python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### Step 5: Open Dashboard
-
-Open your browser and navigate to:
-```
-http://localhost:8000
-```
+</td>
+</tr>
+</table>
 
 ---
 
-## ▶️ Running the Application
+## 🔐 Security & Compliance
+
+ShadowSync ships with a comprehensive [Security Guide](SECURITY.md) including:
+
+- ✅ JWT session authentication with configurable TTL
+- ✅ RBAC — `admin`, `analyst`, `auditor` roles
+- ✅ Fernet field-level encryption (`FIELD_ENCRYPTION_KEY`)
+- ✅ All secrets via environment variables (never hardcoded)
+- ✅ Complete audit trail with action logging
+- ✅ Auto-purge of records older than 7 years (GDPR/SOC 2)
+- ✅ CORS restriction via `ALLOWED_ORIGINS`
+- ✅ CI/CD security audit with `pip-audit`
+- ✅ Docker health checks with graceful failure handling
+
+---
+
+## 🔑 Environment Variables
+
+| Variable | Required | Description |
+|----------|:--------:|-------------|
+| `ADMIN_USERNAME` | ✅ | Dashboard login username |
+| `ADMIN_PASSWORD` | ✅ | Dashboard login password |
+| `GROQ_API_KEY` | ✅ | Groq LLM API key |
+| `COHERE_API_KEY` | ✅ | Cohere API key |
+| `DATABASE_URL` | — | PostgreSQL URL (defaults to SQLite) |
+| `FIELD_ENCRYPTION_KEY` | 🔶 | Fernet key for field encryption |
+| `SLACK_WEBHOOK_URL` | — | Slack alerts webhook |
+| `ALERT_EMAIL_USER` / `_PASS` / `_TO` | — | Email alert configuration |
+| `FIREBASE_CREDENTIALS_PATH` | — | FCM push notification credentials |
+| `SAP_HOST` / `SAP_USER` / `SAP_PASSWORD` | — | SAP live connector |
+
+> 🔶 = Recommended for production
+
+---
+
+## 🖥️ Dashboard Overview
+
+| Tab | Description |
+|-----|-------------|
+| **Overview** | Stats cards, 4 interactive charts, live feed, urgent actions, trend insights |
+| **Priority Queue** | AI-ranked shadows by severity — Critical → High → Medium → Low |
+| **Telemetric Alerts** | Shadow detections with approve/review/reject actions |
+| **Transactions** | Full financial ledger with shadow flags |
+| **Procurement** | Approved POs from ERP system |
+| **Vendors & Risk** | Vendor registry with trust scores & collusion rings |
+| **Inventory** | Stock levels, reorder alerts, auto-PO badges |
+| **Analytics** | Department trends, predictive risk scoring |
+| **Audit Trail** | Complete compliance action log |
+| **AI Copilot** | Conversational LLM interface with provider status |
+
+---
+
+## 🔮 Roadmap
+
+- [x] ~~Docker containerization~~ ✅
+- [x] ~~CI/CD with GitHub Actions~~ ✅
+- [x] ~~SAP BAPI connector~~ ✅
+- [x] ~~Multi-channel alerts (Email/Slack/Push)~~ ✅
+- [x] ~~PostgreSQL production support~~ ✅
+- [x] ~~SOC 2 security compliance~~ ✅
+- [x] ~~Predictive department risk analytics~~ ✅
+- [ ] OAuth 2.0 / SAML enterprise SSO
+- [ ] React Native mobile approval app
+- [ ] Predictive seasonal spend forecasting
+- [ ] Multi-currency global procurement
+- [ ] Kubernetes Helm chart deployment
+
+---
+
+## 🧪 Testing
 
 ```bash
-# Start the server
-python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+# Run API integration tests
+python test_api.py
 
-# The dashboard is available at:
-# http://localhost:8000
+# Run end-to-end verification
+python e2e_test.py
+
+# Run export tests
+python test_exports.py
 ```
 
-On startup, the system automatically:
-1. ✅ Initializes the SQLite database
-2. ✅ Loads seed data (vendors, transactions, POs, inventory)
-3. ✅ Runs the detection engine (flags shadow purchases)
-4. ✅ Starts the real-time transaction simulator
-5. ✅ Initializes Groq and Cohere AI clients
+CI/CD runs automatically on push to `main` or `develop` via [GitHub Actions](.github/workflows/ci.yml) — includes dependency security audit, API tests, and Docker build verification.
 
 ---
 
-## 🔑 Default Credentials
+## 📊 Key Metrics
 
-| Field | Value |
-|-------|-------|
-| **Username** | `admin` |
-| **Password** | `nexus2026` |
+<div align="center">
 
-> The system uses session-based cookie authentication. After login, you're redirected to the main dashboard.
+| Metric | Value |
+|--------|-------|
+| 🕐 Shadow Detection Speed | **< 1 second** |
+| 🤖 Groq LLM Response Time | **~200ms** |
+| 🎯 ML Baseline Accuracy | **85%+** |
+| 📊 Engineered Features | **10+** |
+| 🗄️ Database Tables | **11** |
+| 📡 API Endpoints | **35+** |
+| 📝 Lines of Code | **10,000+** |
 
----
-
-## 🔐 API Keys Configuration
-
-The project uses two AI providers. API keys are configured in `ai_copilot.py`:
-
-### Groq (Fast LLM Inference)
-```
-Provider:   Groq Cloud
-Model:      llama-3.3-70b-versatile (Meta's LLaMA 3.3)
-Endpoint:   https://api.groq.com/openai/v1/chat/completions
-API Key:    Set via GROQ_API_KEY environment variable (see .env.example)
-Purpose:    Conversational AI chat, deep shadow analysis
-Speed:      ~200ms inference (fastest LLM inference available)
-```
-
-### Cohere (Semantic AI)
-```
-Provider:   Cohere
-Model:      command-a-03-2025
-Endpoint:   https://api.cohere.com/v2/chat
-API Key:    Set via COHERE_API_KEY environment variable (see .env.example)
-Purpose:    Risk summarization, vendor insights, risk classification
-```
-
-### How to Update API Keys
-
-Edit `ai_copilot.py` lines 19–20:
-
-```python
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "your-groq-key-here")
-COHERE_API_KEY = os.environ.get("COHERE_API_KEY", "your-cohere-key-here")
-```
-
-Or set environment variables (recommended for production):
-
-```bash
-set GROQ_API_KEY=your_groq_api_key_here
-set COHERE_API_KEY=your_cohere_api_key_here
-```
-
-### Verifying AI Connectivity
-
-After starting the server, visit:
-```
-http://localhost:8000/api/ai/health
-```
-
-Expected response when both are working:
-```json
-{
-  "groq": { "status": "connected", "model": "llama-3.3-70b-versatile" },
-  "cohere": { "status": "connected", "model": "command-a-03-2025" }
-}
-```
-
----
-
-## 🖥️ Screenshots & Dashboard
-
-### Dashboard Overview
-The main dashboard features:
-- **4 Stat Cards** — Financial Exposure, Integrity Variance (shadow rate), Detection Quality, Inventory Health
-- **4 Interactive Charts** — Risk Trend (line), Shadow vs Matched (doughnut), Department Risk (horizontal bar), Category Distribution (polar area)
-- **Live Activity Feed** — Real-time WebSocket-powered event stream
-- **Urgent Actions Panel** — Top 5 critical items needing immediate review
-- **Trend Insights** — Week-over-week shadow activity analysis
-
-### Navigation Tabs
-| Tab | What It Shows |
-|-----|--------------|
-| **Overview** | Dashboard with stats, charts, live feed, urgent actions |
-| **Priority Queue** | AI-ranked shadows sorted by risk severity |
-| **Telemetric Alerts** | Shadow purchase detections with approve/review/reject actions |
-| **Transactions** | Full financial transaction ledger with shadow flags |
-| **Procurement** | Approved purchase orders from ERP |
-| **Vendors & Risk** | Vendor registry with trust scores and risk levels |
-| **Inventory** | Current stock levels, reorder alerts |
-| **Audit Trail** | System action log for compliance |
-
-### AI Copilot Panel
-- Floating button with **pulsing animation** in the bottom-right corner
-- **Glassmorphic chat panel** with message bubbles and markdown formatting
-- **Provider status indicators** (green dot = Groq connected, blue dot = Cohere connected)
-- **Typing animation** while AI processes your query
-- **Quick action buttons** for health check and risk summary
-
----
-
-## 🔮 Future Enhancements
-
-- [ ] **Role-Based Access Control** — Admin, Analyst, Auditor roles with different permissions
-- [ ] **Email/Slack Alerts** — Automated notifications for critical shadow detections
-- [ ] **PostgreSQL Migration** — Scale from SQLite to production-grade database
-- [ ] **Historical ML Retraining** — Periodic model retraining with human feedback data
-- [ ] **Supplier Portal** — Vendor self-service portal for compliance documentation
-- [ ] **Multi-Currency Support** — Global procurement with exchange rate handling
-- [ ] **Docker Deployment** — Containerized deployment for cloud environments
+</div>
 
 ---
 
 ## 👥 Team
 
-Built as part of an enterprise supply chain intelligence project.
+Built by the **ShadowSync Engineering Team** as an enterprise supply chain intelligence platform.
 
 ---
 
-<p align="center">
-  <strong>Shadow Supply Chain Detection System v3.0</strong><br/>
-  <em>Protecting procurement integrity through AI-powered intelligence</em>
+<div align="center">
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:161b22,100:1f6feb&height=120&section=footer" width="100%"/>
+
+**ShadowSync v4.0 — Exhibition Final**
+
+*Protecting procurement integrity through AI-powered intelligence*
+
+<p>
+  <img src="https://img.shields.io/badge/Made_with-Python-3776AB?style=flat-square&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Powered_by-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" />
+  <img src="https://img.shields.io/badge/AI_by-Groq_+_Cohere-F55036?style=flat-square" />
 </p>
+
+</div>

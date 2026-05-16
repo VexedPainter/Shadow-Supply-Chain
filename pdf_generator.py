@@ -462,14 +462,20 @@ def generate_dashboard_report_pdf(stats: dict, risk_vendors: list = None, recomm
     return bytes(pdf.output())
 
 def generate_bulk_pdf(po_list: list) -> bytes:
-    """High-performance Bulk Procurement Index with optimized pagination and row density."""
+    """High-performance Bulk Procurement Index with professional formatting and row density."""
     pdf = NexusPDF(orientation="L", unit="mm", format="Letter")
     pdf.alias_nb_pages()
     pdf.add_page()
     pdf.branding_header(title="PROCUREMENT AUDIT LOG")
 
-    headers = [("PO ID", 30), ("DATE", 25), ("VENDOR", 55), ("ITEM", 60), ("AMOUNT", 30), ("QTY", 15), ("STATUS", 25), ("DEPT", 30)]
-    
+    # Columns tuned to fit Letter landscape (usable width ~267mm)
+    # PO ID, Date, Vendor, Item, Amount, Qty, Dept, Status, Source
+    headers = [
+        ("PO ID", 28), ("DATE", 24), ("VENDOR", 50), ("ITEM DESCRIPTION", 52),
+        ("AMOUNT (USD)", 28), ("QTY", 13), ("DEPT", 26), ("STATUS", 24), ("SOURCE", 22)
+    ]
+    col_widths = [w for _, w in headers]
+
     def add_header_row():
         pdf.set_fill_color(31, 41, 55)
         pdf.set_text_color(255, 255, 255)
@@ -477,17 +483,17 @@ def generate_bulk_pdf(po_list: list) -> bytes:
         for h, w in headers:
             pdf.cell(w, 8, h, fill=True, align="C")
         pdf.ln()
-    
+
     add_header_row()
-    
+
     pdf.set_text_color(31, 41, 55)
     pdf.set_font("helvetica", "", 8)
-    
-    # Increase density to 28 items per page to reduce page count/file size
-    max_items_per_page = 28
+
+    max_items_per_page = 26
     page_item_count = 0
-    
-    for p in po_list:
+    total_spend = 0.0
+
+    for idx, p in enumerate(po_list):
         if page_item_count >= max_items_per_page:
             pdf.add_page()
             pdf.branding_header(title="PROCUREMENT AUDIT LOG (CONT.)")
@@ -496,25 +502,52 @@ def generate_bulk_pdf(po_list: list) -> bytes:
             pdf.set_font("helvetica", "", 8)
             page_item_count = 0
 
-        # Optimization: Pre-format data to avoid complex logic in cell calls
-        amount = f"${float(p.get('amount', 0)):,.2f}"
+        # Alternating zebra-stripe fill
+        if idx % 2 == 0:
+            pdf.set_fill_color(248, 250, 252)
+        else:
+            pdf.set_fill_color(255, 255, 255)
+        fill = True
+
+        amt_raw = float(p.get('amount', 0) or 0)
+        total_spend += amt_raw
+        amount_str = f"${amt_raw:,.2f}"
         status = str(p.get("status", "Pending"))
-        
-        pdf.cell(30, 7, pdf.clean_str(p.get("id", "N/A")), border="B")
-        pdf.cell(25, 7, pdf.clean_str(p.get("date", ""))[:10], border="B")
-        pdf.cell(55, 7, pdf.clean_str(p.get("vendor_name", "Unknown"))[:28], border="B")
-        pdf.cell(60, 7, pdf.clean_str(p.get("item", "General"))[:30], border="B")
-        pdf.cell(30, 7, amount, border="B", align="R")
-        pdf.cell(15, 7, str(p.get("quantity", 1)), border="B", align="C")
-        
-        # Optimized conditional styling
-        if status == "Resolved": pdf.set_text_color(5, 150, 105)
-        elif status in ["Flagged", "Pending"]: pdf.set_text_color(185, 28, 28)
-        
-        pdf.cell(25, 7, pdf.clean_str(status), border="B", align="C")
+        source = str(p.get("source", "Manual"))
+
+        pdf.cell(28, 7, pdf.clean_str(p.get("id", "N/A"))[:16], border="B", fill=fill)
+        pdf.cell(24, 7, pdf.clean_str(str(p.get("date", "")))[:10], border="B", fill=fill)
+        pdf.cell(50, 7, pdf.clean_str(p.get("vendor_name", "Unknown"))[:26], border="B", fill=fill)
+        pdf.cell(52, 7, pdf.clean_str(p.get("item", "General Hardware"))[:28], border="B", fill=fill)
+        pdf.cell(28, 7, amount_str, border="B", align="R", fill=fill)
+        pdf.cell(13, 7, str(p.get("quantity", 1)), border="B", align="C", fill=fill)
+        pdf.cell(26, 7, pdf.clean_str(p.get("department", "Ops"))[:13], border="B", align="C", fill=fill)
+
+        # Status color coding
+        if status in ("Resolved", "Approved"):
+            pdf.set_text_color(5, 150, 105)
+        elif status in ("Flagged", "Pending", "Rejected"):
+            pdf.set_text_color(185, 28, 28)
+        else:
+            pdf.set_text_color(107, 114, 128)
+        pdf.cell(24, 7, pdf.clean_str(status), border="B", align="C", fill=fill)
+
+        pdf.set_text_color(79, 70, 229)
+        pdf.cell(22, 7, pdf.clean_str(source)[:10], border="B", align="C", fill=fill)
+
         pdf.set_text_color(31, 41, 55)
-        pdf.cell(30, 7, pdf.clean_str(p.get("department", "Ops"))[:15], border="B", align="C")
         pdf.ln()
         page_item_count += 1
+
+    # Summary totals footer row
+    pdf.ln(3)
+    pdf.set_fill_color(31, 41, 55)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("helvetica", "B", 9)
+    left_w = sum(col_widths[:6])   # PO ID + Date + Vendor + Item + Amount + Qty
+    right_w = sum(col_widths[6:])  # Dept + Status + Source
+    pdf.cell(left_w, 9, f"  TOTAL: {len(po_list)} PURCHASE ORDERS", fill=True, align="L")
+    pdf.cell(right_w, 9, f"TOTAL SPEND: ${total_spend:,.2f}", fill=True, align="R")
+    pdf.ln()
 
     return bytes(pdf.output())

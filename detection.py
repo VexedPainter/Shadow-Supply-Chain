@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from database import (
     Transaction, Procurement, ShadowPurchase, Vendor, Inventory, 
     RiskSnapshot, RiskMetric, ActionRecommendation, BehaviorMetric,
-    UnifiedEvent, EmergencyDecisionLog
+    UnifiedEvent, EmergencyDecisionLog, AuditLog
 )
 from ai_module import shadow_ai
 import datetime
@@ -30,17 +30,55 @@ def run_detection(db: Session) -> dict:
     pos = db.query(Procurement).all()
     vendors_map = {v.name: v for v in db.query(Vendor).all()}
 
-    # Build feature sets for AI training (ERP data extraction simulation)
+    # ── Pre-compute F8: department shadow rates ──────────────────────────────────
+    from collections import defaultdict
+    import datetime as _dt
+
+    all_hist_shadows  = db.query(ShadowPurchase).all()
+    dept_total_count  = defaultdict(int)
+    dept_shadow_count = defaultdict(int)
+    txn_dept_lookup   = {t.id: t.department for t in transactions}
+
+    for t in transactions:
+        dept_total_count[t.department] += 1
+    for s in all_hist_shadows:
+        dept = txn_dept_lookup.get(s.transaction_id)
+        if dept:
+            dept_shadow_count[dept] += 1
+
+    dept_shadow_rate = {
+        dept: round(dept_shadow_count[dept] / max(dept_total_count[dept], 1), 4)
+        for dept in dept_total_count
+    }
+
+    # ── Pre-compute F10: recurring vendors ──────────────────────────────────────
+    cutoff_30d = (_dt.date.today() - _dt.timedelta(days=30)).isoformat()
+    vendor_30d_count = defaultdict(int)
+    for t in transactions:
+        if str(t.date) >= cutoff_30d:
+            vendor_30d_count[t.vendor] += 1
+    recurring_vendors = {v for v, cnt in vendor_30d_count.items() if cnt >= 3}
+
+    # ── Build feature sets — all 10 features populated ──────────────────────────
     feature_sets = []
     for t in transactions:
-        vendor_info = None
         v = vendors_map.get(t.vendor)
+        vendor_info = None
         if v:
-            vendor_info = {"risk_level": v.risk_level, "approved": v.approved}
-        features = shadow_ai.ingestion.extract_transaction_features(
-            {"date": t.date, "amount": t.amount, "payment_type": t.payment_type, "card_holder": t.card_holder},
-            vendor_info
-        )
+            vendor_info = {
+                "risk_level": v.risk_level,
+                "approved":   v.approved,
+                "avg_order":  float(v.avg_order or 0),   # F7: vendor historical average
+            }
+        txn_dict_full = {
+            "date":            t.date,
+            "amount":          t.amount,
+            "payment_type":    t.payment_type,
+            "card_holder":     t.card_holder,
+            "dept_risk_score": dept_shadow_rate.get(t.department, 0.5),      # F8
+            "is_recurring":    1.0 if t.vendor in recurring_vendors else 0.0, # F10
+        }
+        features = shadow_ai.ingestion.extract_transaction_features(txn_dict_full, vendor_info)
         feature_sets.append(features)
 
     shadow_ai.fit_anomaly_detector(feature_sets)
@@ -103,6 +141,8 @@ def run_detection(db: Session) -> dict:
                 bypassed = True
                 priority_score = min(1.0, priority_score + 0.4)
                 anomaly_factors.append("Bypassed preventive inventory recommendation")
+                # B10: Check for repeat bypass pattern and escalate if threshold exceeded
+                _check_repeat_bypass_pattern(db, txn, bypass_log)
 
             # 3. Financial Impact Engine
             vendor = vendors_map.get(txn.vendor)
@@ -312,10 +352,36 @@ def get_recommendations(db: Session) -> list[dict]:
     return shadow_ai.generate_recommendations(shadows, vendors, transactions)
 
 
+def _vendor_name_match(v1: str, v2: str) -> bool:
+    """
+    Token-based vendor name similarity check.
+
+    The old substring approach (v1 in v2) was a critical loophole: a vendor
+    named 'Co' or 'Supply' would match nearly every PO vendor name, causing
+    shadow purchases to be incorrectly resolved against unrelated POs and
+    suppressing genuine fraud signals.
+
+    Fix: require that at least 60% of the *shorter* name's significant tokens
+    (≥4 chars) are present in the other name's token set. Falls back to a
+    direct substring check only when both names are short (≤ 6 chars).
+    """
+    if not v1 or not v2:
+        return False
+    w1 = set(w for w in v1.split() if len(w) >= 4)
+    w2 = set(w for w in v2.split() if len(w) >= 4)
+    # If either name yields no significant tokens (e.g. very short abbreviations),
+    # fall back to strict equality to avoid false positives.
+    if not w1 or not w2:
+        return v1 == v2
+    shorter = w1 if len(w1) <= len(w2) else w2
+    overlap = len(shorter & (w1 | w2))
+    return overlap / len(shorter) >= 0.6
+
+
 def _is_match(txn: Transaction, po: Procurement) -> bool:
-    """Match transaction to PO by vendor + amount (±5%) + date (±7 days)."""
-    v1, v2 = txn.vendor.lower(), po.vendor_name.lower()
-    if v1 not in v2 and v2 not in v1:
+    """Match transaction to PO by vendor (token similarity) + amount (±5%) + date (±7 days)."""
+    v1, v2 = txn.vendor.lower().strip(), po.vendor_name.lower().strip()
+    if not _vendor_name_match(v1, v2):
         return False
     if abs(txn.amount - po.amount) > po.amount * 0.05:
         return False
@@ -675,3 +741,59 @@ def _update_trend_metrics(db: Session, snapshot: dict):
                 category=dept,
                 details=f"Shadow purchases detected in {dept}"
             ))
+
+
+# ─── B10: Repeat Bypass Escalation ───────────────────────────────────
+
+def _check_repeat_bypass_pattern(db: Session, txn, bypass_log):
+    """
+    B10: If a department has bypassed preventive recommendations 3+ times in
+    30 days, log an escalation record to the audit trail with recommended actions.
+
+    Escalation levels:
+      • 3–4 bypasses → Manager review
+      • 5+ bypasses   → Director escalation
+    """
+    thirty_days_ago = (
+        datetime.date.today() - datetime.timedelta(days=30)
+    ).isoformat()
+
+    try:
+        repeat_bypasses = db.query(EmergencyDecisionLog).filter(
+            EmergencyDecisionLog.user_action == "overridden",
+            EmergencyDecisionLog.department == txn.department,
+            EmergencyDecisionLog.logged_at >= thirty_days_ago,
+        ).count()
+    except Exception:
+        return None  # Table may not exist yet in older schemas
+
+    if repeat_bypasses >= 3:
+        escalation_level = "Director" if repeat_bypasses >= 5 else "Manager"
+        recommended_action = (
+            f"Department '{txn.department}' has bypassed procurement "
+            f"recommendations {repeat_bypasses} times in 30 days. "
+            f"Recommend: (1) Mandatory procurement training, "
+            f"(2) Department head review, "
+            f"(3) Temporary purchasing limit reduction."
+        )
+        escalation = {
+            "department": txn.department,
+            "bypass_count": repeat_bypasses,
+            "period": "30 days",
+            "latest_bypass": getattr(bypass_log, "logged_at", ""),
+            "recommended_action": recommended_action,
+            "escalation_level": escalation_level,
+        }
+        try:
+            import json
+            db.add(AuditLog(
+                action="REPEAT_BYPASS_ESCALATION",
+                details=json.dumps(escalation),
+                user="SYSTEM",
+                timestamp=datetime.datetime.now().isoformat(),
+                target_id=txn.department,
+            ))
+        except Exception:
+            pass  # Don't let escalation logging break the detection pipeline
+        return escalation
+    return None

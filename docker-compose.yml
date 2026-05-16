@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  shadowsync:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # AI Provider Keys (required for Copilot features)
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - COHERE_API_KEY=${COHERE_API_KEY}
+      # Authentication
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-nexus2026}
+      # B5: PostgreSQL connection (switches from SQLite automatically)
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/shadowsync
+      # B3: Alert configuration (optional — silently skipped if not set)
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - ALERT_EMAIL_USER=${ALERT_EMAIL_USER:-}
+      - ALERT_EMAIL_PASS=${ALERT_EMAIL_PASS:-}
+      - ALERT_EMAIL_TO=${ALERT_EMAIL_TO:-}
+      - ALERT_SMTP_HOST=${ALERT_SMTP_HOST:-smtp.gmail.com}
+      - ALERT_SMTP_PORT=${ALERT_SMTP_PORT:-587}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/login')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: shadowsync
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shadowsync"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

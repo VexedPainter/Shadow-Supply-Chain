@@ -29,6 +29,19 @@ document.addEventListener('DOMContentLoaded', () => {
     initCharts();
     connectWebSocket();
     fetchAllData();
+
+    // Tab-click auto-loaders
+    document.addEventListener('click', e => {
+        const tab = e.target.closest('[data-section]');
+        if (!tab) return;
+        const s = tab.getAttribute('data-section');
+        if (s === 'vendor-rings') setTimeout(loadVendorRings, 100);
+        if (s === 'ml-status') setTimeout(loadMLTransparency, 100);
+        if (s === 'telemetry') {
+            setTimeout(loadTelemetrySummary, 100);
+            setTimeout(loadShadowVelocity, 200);
+        }
+    });
 });
 
 function fetchAllData() {
@@ -46,6 +59,23 @@ function fetchAllData() {
     fetchOpsInsights();
     fetchPriorityQueue(); // Also fetch for urgent actions panel
     fetchTrends(); // Trend insights dashboard
+}
+
+async function apiFetch(url, options = {}) {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || response.statusText);
+    }
+    // Only parse JSON if there's content and it's not a 204 No Content
+    if (response.status !== 204 && response.headers.get('content-length') !== '0') {
+        try {
+            return await response.json();
+        } catch (e) {
+            return {};
+        }
+    }
+    return {};
 }
 
 async function logout() {
@@ -77,10 +107,6 @@ function switchTab(tabName) {
         fetchPriorityQueue();
         fetchRootCause();
         fetchActionQueue();
-    }
-    // Refresh audit data when switching to audit tab
-    if (tabName === 'audit') {
-        fetchAuditLog();
     }
 }
 
@@ -142,6 +168,12 @@ function handleWSMessage(data) {
     } else if (data.type === 'pong') {
         const el = document.getElementById('clientCount');
         if (el) el.textContent = `${data.data.clients} connected`;
+    } else if (data.type === 'model_retrained') {
+        showToast(`Model retrained — ${data.data?.mode || 'feedback'} mode`, 'success');
+        fetchStats();
+    } else if (data.type === 'demo_reset') {
+        showToast('Demo reset complete — system ready for exhibition', 'info');
+        fetchAllData();
     }
 }
 
@@ -150,6 +182,25 @@ function updateLiveBadge(live) {
     const label = document.getElementById('liveLabel');
     if (dot) { dot.className = `pulse-dot ${live ? 'live' : 'stopped'}`; }
     if (label) { label.textContent = live && state.simulatorRunning ? 'LIVE' : 'PAUSED'; }
+}
+
+async function demoReset() {
+    const btn = document.getElementById('btn-demo-reset');
+    if (btn) { btn.textContent = '⏳ Resetting...'; btn.disabled = true; }
+    try {
+        const res = await apiFetch('/api/demo/reset', { method: 'POST' });
+        if (res.ok) {
+            const d = await res.json();
+            showToast(`Reset complete — ${d.shadows_reset} shadows restored to Pending`, 'success');
+            await fetchAllData();
+        } else {
+            showToast('Reset failed: ' + (await res.text()), 'error');
+        }
+    } catch (e) {
+        showToast('Reset error: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.textContent = '🔄 Reset Demo'; btn.disabled = false; }
+    }
 }
 
 // ==============================================
@@ -191,7 +242,7 @@ async function setDataMode(mode) {
             body: JSON.stringify({ mode: mode })
         });
         const data = await res.json();
-        
+
         if (mode === 'real') {
             showToast('PRODUCTION TELEMETRY ACTIVATED: SF Infrastructure protocols engaged.', 'success');
             addFeedEvent('<span class="material-icons-outlined" style="font-size:16px;color:var(--brand-secondary)">security</span>', 'System entering Production Mode: High-fidelity SF dataset active.');
@@ -199,7 +250,7 @@ async function setDataMode(mode) {
             showToast('Restored Synthetic Modeling state.', 'info');
             addFeedEvent('<span class="material-icons-outlined" style="font-size:16px;color:var(--brand-secondary)">science</span>', 'System entering Synthetic Mode: Sandbox dataset active.');
         }
-        
+
         setTimeout(fetchAllData, 1500);
     } catch (e) {
         showToast('Mode switch failed', 'error');
@@ -219,21 +270,35 @@ async function fetchStats() {
 
 function updateStats(data) {
     state.lastStats = data;
-    const exposure = data.total_exposure ?? data.exposure ?? 0;
-    const shadowRate = data.shadow_rate ?? 0;
-    const dq = data.detection_quality || data.avg_risk_score || 'High';
-    const invHealth = data.inventory_health || data.pending_actions || '-';
+    const exposure    = data.total_exposure ?? data.exposure ?? 0;
+    const shadowRate  = data.shadow_rate ?? 0;
+    const dq          = data.detection_quality ?? 85.0;   // percentage (0–100)
+    const invHealth   = data.inventory_health || data.pending_actions || '-';
 
-    animateValue('stat-exposure', `$${Number(exposure).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
-    animateValue('stat-shadow-rate', `${(Number(shadowRate) * 100).toFixed(1)}%`);
+    animateValue('stat-exposure',     `$${Number(exposure).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+    animateValue('stat-shadow-rate',  `${(Number(shadowRate) * 100).toFixed(1)}%`);
 
-    const dqEl = document.getElementById('stat-dq');
+    // Detection Quality — show as real % from feedback, colour-coded
+    const dqEl    = document.getElementById('stat-dq');
+    const dqSubEl = document.getElementById('stat-dq-sub');
     if (dqEl) {
-        if (typeof dq === 'number') {
-            dqEl.textContent = dq > 0.7 ? 'High' : dq > 0.4 ? 'Medium' : 'Low';
-        } else {
-            dqEl.textContent = dq;
-        }
+        const dqNum = typeof dq === 'number' ? dq : parseFloat(dq) || 85.0;
+        dqEl.textContent = dqNum.toFixed(1) + '%';
+        dqEl.style.color = dqNum >= 90 ? 'var(--success)'
+                         : dqNum >= 75 ? 'var(--warning)'
+                         : 'var(--danger)';
+    }
+    if (dqSubEl) {
+        const fbCount = data.feedback_count ?? 0;
+        dqSubEl.textContent = fbCount > 0
+            ? `from ${fbCount} human reviews`
+            : 'baseline — no feedback yet';
+    }
+
+    // Model version + last retrain tooltip on the DQ card
+    const dqCardEl = document.getElementById('stat-dq-card');
+    if (dqCardEl && data.model_version) {
+        dqCardEl.title = `${data.model_version} | Last retrain: ${data.last_retrain || 'Never'}`;
     }
 
     const invEl = document.getElementById('stat-inv');
@@ -297,71 +362,72 @@ function initCharts() {
         return;
     }
     try {
-    // Risk Trend (Line)
-    state.charts.riskTrend = new Chart(document.getElementById('chartRiskTrend'), {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Exposure ($)',
-                data: [],
-                borderColor: chartColors.navy,
-                backgroundColor: chartColors.navyBg,
-                fill: true, tension: 0.4, pointRadius: 3, pointHoverRadius: 6,
-                borderWidth: 2,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(25, 28, 29, 0.05)' } },
-                x: { grid: { display: false } }
+        // Risk Trend (Line)
+        state.charts.riskTrend = new Chart(document.getElementById('chartRiskTrend'), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Exposure ($)',
+                    data: [],
+                    borderColor: chartColors.navy,
+                    backgroundColor: chartColors.navyBg,
+                    fill: true, tension: 0.4, pointRadius: 3, pointHoverRadius: 6,
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(25, 28, 29, 0.05)' } },
+                    x: { grid: { display: false } }
+                }
             }
-        }
-    });
+        });
 
-    // Shadow Ratio (Doughnut)
-    state.charts.shadowRatio = new Chart(document.getElementById('chartShadowRatio'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Matched', 'Shadow', 'Resolved'],
-            datasets: [{
-                data: [60, 30, 10],
-                backgroundColor: [chartColors.teal, chartColors.red, chartColors.navy],
-                borderWidth: 0, hoverOffset: 8,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false, cutout: '65%',
-            plugins: { legend: { position: 'bottom' } }
-        }
-    });
+        // Shadow Ratio (Doughnut)
+        state.charts.shadowRatio = new Chart(document.getElementById('chartShadowRatio'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Matched', 'Shadow', 'Resolved'],
+                datasets: [{
+                    data: [60, 30, 10],
+                    backgroundColor: [chartColors.teal, chartColors.red, chartColors.navy],
+                    borderWidth: 0, hoverOffset: 8,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '65%',
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
 
-    // Department Risk Heatmap — rendered via custom DOM, not Chart.js
-    // (see renderDeptRiskHeatmap below)
+        // Department Risk Heatmap - rendered as HTML grid (not Chart.js)
+        renderDeptHeatmap({});
 
-    // Categories (Polar)
-    state.charts.categories = new Chart(document.getElementById('chartCategories'), {
-        type: 'polarArea',
-        data: {
-            labels: ['Pumps', 'Electrical', 'Safety', 'Tools', 'Fasteners'],
-            datasets: [{
-                data: [0, 0, 0, 0, 0],
-                backgroundColor: [
-                    'rgba(0,35,75,0.45)', 'rgba(255,191,0,0.5)',
-                    'rgba(0,106,106,0.45)', 'rgba(186,26,26,0.45)',
-                    'rgba(103,80,164,0.45)'
-                ],
-                borderWidth: 0,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } },
-            scales: { r: { grid: { color: 'rgba(25, 28, 29, 0.06)' }, ticks: { display: false } } }
-        }
-    });
+
+        // Categories (Polar)
+        state.charts.categories = new Chart(document.getElementById('chartCategories'), {
+            type: 'polarArea',
+            data: {
+                labels: ['Pumps', 'Electrical', 'Safety', 'Tools', 'Fasteners'],
+                datasets: [{
+                    data: [0, 0, 0, 0, 0],
+                    backgroundColor: [
+                        'rgba(0,35,75,0.45)', 'rgba(255,191,0,0.5)',
+                        'rgba(0,106,106,0.45)', 'rgba(186,26,26,0.45)',
+                        'rgba(103,80,164,0.45)'
+                    ],
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } },
+                scales: { r: { grid: { color: 'rgba(25, 28, 29, 0.06)' }, ticks: { display: false } } }
+            }
+        });
     } catch (e) {
         console.error('[CHARTS] Initialization failed:', e);
     }
@@ -391,9 +457,24 @@ function updateChartsFromData(shadows, transactions) {
         state.charts.shadowRatio.update('none');
     }
 
-    // Department Risk Heatmap (real grid)
+    // Department Risk Heatmap
     if (shadows) {
-        renderDeptRiskHeatmap(shadows, transactions);
+        // Build dept → { low, medium, high, total } counts from ALL shadows (not just pending)
+        const deptData = {};
+        shadows.forEach(s => {
+            const dept = s.department || 'Unknown';
+            const risk = Number(s.risk_score || 0);
+            const level = risk >= 0.7 ? 'high' : risk >= 0.3 ? 'medium' : 'low';
+            if (!deptData[dept]) deptData[dept] = { low: 0, medium: 0, high: 0, total: 0 };
+            deptData[dept][level]++;
+            deptData[dept].total++;
+        });
+        // Top 6 departments by total shadow count
+        const top6 = Object.entries(deptData)
+            .sort((a, b) => b[1].total - a[1].total)
+            .slice(0, 6)
+            .reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {});
+        renderDeptHeatmap(top6);
     }
 
     // Categories
@@ -410,97 +491,81 @@ function updateChartsFromData(shadows, transactions) {
     }
 }
 
-// ==============================================
-//  DEPARTMENT RISK HEATMAP (Real Grid)
-// ==============================================
-function renderDeptRiskHeatmap(shadows, transactions) {
-    const container = document.getElementById('deptRiskHeatmap');
+/**
+ * Render a department × risk-level heatmap grid into #deptHeatmapContainer.
+ * @param {Object} deptData  e.g. { Maintenance: { low:2, medium:5, high:3, total:10 }, ... }
+ */
+function renderDeptHeatmap(deptData) {
+    const container = document.getElementById('deptHeatmapContainer');
     if (!container) return;
 
-    const riskFactors = ['Shadow Count', 'Avg Risk', 'Total Spend', 'Overrides'];
-    const deptData = {};
+    const levels  = ['low', 'medium', 'high'];
+    const labels  = { low: 'Low', medium: 'Medium', high: 'High' };
+    const depts   = Object.keys(deptData);
 
-    // Build department data from shadows
-    (shadows || []).forEach(s => {
-        const dept = s.department || 'Unknown';
-        if (!deptData[dept]) deptData[dept] = { count: 0, totalRisk: 0, spend: 0, overrides: 0 };
-        deptData[dept].count++;
-        deptData[dept].totalRisk += (s.risk_score || 0);
-    });
+    // Find max value for intensity scaling
+    let maxVal = 1;
+    depts.forEach(d => levels.forEach(l => { if (deptData[d][l] > maxVal) maxVal = deptData[d][l]; }));
 
-    // Enrich with transaction amounts
-    (transactions || []).forEach(t => {
-        const dept = t.department || 'Unknown';
-        if (t.is_shadow && deptData[dept]) {
-            deptData[dept].spend += (t.amount || 0);
-        }
-    });
+    // Color ramps per risk level
+    const ramps = {
+        low:    (t) => `rgba(16, 185, 129, ${0.1 + t * 0.85})`,  // emerald
+        medium: (t) => `rgba(245, 158, 11, ${0.1 + t * 0.85})`,  // amber
+        high:   (t) => `rgba(239, 68, 68,  ${0.1 + t * 0.85})`,  // red
+    };
 
-    const depts = Object.keys(deptData).sort((a, b) => deptData[b].count - deptData[a].count).slice(0, 6);
     if (depts.length === 0) {
-        container.innerHTML = '<div style="text-align:center;color:var(--text-subtle);padding:30px;font-size:12px">No department data available yet</div>';
+        container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:13px;">No shadow data yet — heatmap will populate automatically.</div>`;
         return;
     }
 
-    // Compute max values for normalization
-    const maxCount = Math.max(...depts.map(d => deptData[d].count), 1);
-    const maxRisk  = Math.max(...depts.map(d => deptData[d].count > 0 ? deptData[d].totalRisk / deptData[d].count : 0), 0.01);
-    const maxSpend = Math.max(...depts.map(d => deptData[d].spend), 1);
+    let html = `
+      <div style="padding:8px 4px;">
+        <table style="width:100%;border-collapse:separate;border-spacing:3px;font-size:12px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:4px 8px;color:#64748b;font-weight:600;white-space:nowrap;">Department</th>
+              ${levels.map(l => `<th style="text-align:center;padding:4px 8px;color:#64748b;font-weight:600;">${labels[l]} Risk</th>`).join('')}
+              <th style="text-align:center;padding:4px 8px;color:#64748b;font-weight:600;">Total</th>
+            </tr>
+          </thead>
+          <tbody>`;
 
-    function heatColor(intensity) {
-        // 0 = cool (green), 0.5 = warm (amber), 1 = hot (red)
-        const i = Math.max(0, Math.min(1, intensity));
-        if (i < 0.35) return `rgba(34, 197, 94, ${0.15 + i * 0.7})`;  // green
-        if (i < 0.65) return `rgba(245, 158, 11, ${0.2 + i * 0.6})`;  // amber
-        return `rgba(239, 68, 68, ${0.25 + i * 0.55})`;               // red
-    }
-
-    function textColor(intensity) {
-        return intensity > 0.5 ? '#fff' : 'var(--text-base)';
-    }
-
-    // Build the grid HTML
-    let html = '<div style="overflow-x:auto;">';
-    html += '<table style="width:100%;border-collapse:separate;border-spacing:3px;table-layout:fixed;">';
-    // Header row
-    html += '<tr><td style="width:100px;"></td>';
-    riskFactors.forEach(f => {
-        html += `<td style="text-align:center;font-size:10px;font-weight:700;color:var(--text-muted);padding:6px 4px;text-transform:uppercase;letter-spacing:0.03em;">${f}</td>`;
-    });
-    html += '</tr>';
-
-    // Data rows
     depts.forEach(dept => {
-        const d = deptData[dept];
-        const avgRisk = d.count > 0 ? d.totalRisk / d.count : 0;
-        const cells = [
-            { val: d.count,   norm: d.count / maxCount,  display: d.count },
-            { val: avgRisk,   norm: avgRisk / maxRisk,   display: (avgRisk * 100).toFixed(0) + '%' },
-            { val: d.spend,   norm: d.spend / maxSpend,  display: '$' + d.spend.toLocaleString('en-US', {maximumFractionDigits: 0}) },
-            { val: d.overrides, norm: Math.random() * 0.6, display: Math.floor(Math.random() * 4) }
-        ];
-
-        html += '<tr>';
-        html += `<td style="font-size:12px;font-weight:600;color:var(--text-base);padding:6px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${dept}">${dept}</td>`;
-        cells.forEach(c => {
-            const bg = heatColor(c.norm);
-            const fg = textColor(c.norm);
-            html += `<td style="text-align:center;font-size:13px;font-weight:700;padding:10px 6px;border-radius:6px;background:${bg};color:${fg};transition:all 0.3s ease;cursor:default;" title="${dept}: ${c.display}">${c.display}</td>`;
+        const row = deptData[dept];
+        html += `<tr>`;
+        // Dept label
+        html += `<td style="padding:5px 8px;font-weight:600;color:#1e293b;white-space:nowrap;border-radius:4px;">${dept}</td>`;
+        // Risk cells
+        levels.forEach(l => {
+            const val = row[l] || 0;
+            const t   = maxVal > 0 ? val / maxVal : 0;
+            const bg  = ramps[l](t);
+            const textColor = t > 0.5 ? '#fff' : '#1e293b';
+            html += `<td style="text-align:center;padding:6px 12px;border-radius:6px;background:${bg};color:${textColor};font-weight:${val>0?'700':'400'};transition:all 0.2s;" title="${dept} · ${labels[l]} risk: ${val} shadow(s)">${val > 0 ? val : '-'}</td>`;
         });
-        html += '</tr>';
+        // Total
+        const totalT = row.total / maxVal;
+        html += `<td style="text-align:center;padding:6px 12px;border-radius:6px;background:rgba(99,102,241,${0.05+totalT*0.3});color:#4338ca;font-weight:700;">${row.total}</td>`;
+        html += `</tr>`;
     });
 
-    html += '</table></div>';
-
-    // Legend
-    html += `<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-top:10px;font-size:10px;color:var(--text-subtle);">
-        <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:3px;background:rgba(34,197,94,0.5);display:inline-block;"></span> Low</span>
-        <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:3px;background:rgba(245,158,11,0.6);display:inline-block;"></span> Medium</span>
-        <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:3px;background:rgba(239,68,68,0.7);display:inline-block;"></span> High</span>
+    html += `</tbody></table>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:10px;padding:0 6px;">
+        <span style="font-size:11px;color:#94a3b8;">Intensity:</span>
+        <div style="display:flex;gap:3px;">
+          ${Array.from({length:8},(_,i)=>{
+              const t=i/7;
+              return `<div style="width:18px;height:10px;border-radius:2px;background:rgba(239,68,68,${0.1+t*0.85});"></div>`;
+          }).join('')}
+        </div>
+        <span style="font-size:11px;color:#94a3b8;">Low → High shadows</span>
+      </div>
     </div>`;
 
     container.innerHTML = html;
 }
+
 
 // ==============================================
 //  LIVE FEED
@@ -560,8 +625,8 @@ function renderShadowTable(shadows) {
         if (!state.shadowFilter) return true;
         const q = state.shadowFilter.toLowerCase();
         return (s.vendor || '').toLowerCase().includes(q) ||
-               (s.description || '').toLowerCase().includes(q) ||
-               (s.item_category || '').toLowerCase().includes(q);
+            (s.description || '').toLowerCase().includes(q) ||
+            (s.item_category || '').toLowerCase().includes(q);
     });
 
     tbody.innerHTML = filtered.map(s => {
@@ -586,7 +651,7 @@ function renderShadowTable(shadows) {
         const confMarkup = `
             <div style="display:flex; align-items:center; gap:8px;">
                 <div style="width:40px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
-                    <div style="width:${conf*100}%;height:100%;background:${confColor};border-radius:2px;"></div>
+                    <div style="width:${conf * 100}%;height:100%;background:${confColor};border-radius:2px;"></div>
                 </div>
                 <span style="font-size:11px;color:var(--text-muted)">${(conf * 100).toFixed(0)}%</span>
             </div>
@@ -648,9 +713,9 @@ function renderTransactionTable(txns) {
         if (!state.txnFilter) return true;
         const q = state.txnFilter.toLowerCase();
         return (t.vendor || '').toLowerCase().includes(q) ||
-               (t.description || '').toLowerCase().includes(q) ||
-               (t.department || '').toLowerCase().includes(q) ||
-               (t.id || '').toLowerCase().includes(q);
+            (t.description || '').toLowerCase().includes(q) ||
+            (t.department || '').toLowerCase().includes(q) ||
+            (t.id || '').toLowerCase().includes(q);
     });
 
     tbody.innerHTML = filtered.map(t => {
@@ -674,6 +739,9 @@ function renderTransactionTable(txns) {
             <td>${t.department || '-'}</td>
             <td style="font-size:11px">${t.payment_type || '-'}</td>
             <td>${statusBadge}</td>
+            <td>
+                <button class="btn btn-sm btn-outline" onclick="checkCompliance('${t.id}', '${escapeHtml(t.vendor || '')}')">🔍 Check</button>
+            </td>
         </tr>`;
     }).join('');
 }
@@ -698,16 +766,6 @@ async function fetchPriorityQueue() {
     }
 }
 
-async function fetchTrends() {
-    try {
-        const res = await fetch('/api/trends?period=week');
-        const data = await res.json();
-        renderTrends(data);
-    } catch (e) {
-        console.warn('[TRENDS] Fetch failed:', e);
-    }
-}
-
 function renderTrends(data) {
     const elThisWeek = document.getElementById('trend-this-week');
     const elWeekChange = document.getElementById('trend-week-change');
@@ -727,13 +785,13 @@ function renderTrends(data) {
 
     // Top vendor
     const vendorBreakdown = data.shadow_by_vendor || {};
-    const topVendor = Object.keys(vendorBreakdown).sort((a,b) => vendorBreakdown[b] - vendorBreakdown[a])[0];
+    const topVendor = Object.keys(vendorBreakdown).sort((a, b) => vendorBreakdown[b] - vendorBreakdown[a])[0];
     const topVendorCount = topVendor ? vendorBreakdown[topVendor] : 0;
     elTopVendor.textContent = topVendor ? `${topVendor} (${topVendorCount} items)` : '-';
 
     // Top department
     const deptBreakdown = data.shadow_by_department || {};
-    const topDept = Object.keys(deptBreakdown).sort((a,b) => deptBreakdown[b] - deptBreakdown[a])[0];
+    const topDept = Object.keys(deptBreakdown).sort((a, b) => deptBreakdown[b] - deptBreakdown[a])[0];
     const topDeptCount = topDept ? deptBreakdown[topDept] : 0;
     elTopDept.textContent = topDept ? `${topDept} (${topDeptCount} items)` : '-';
 
@@ -763,8 +821,8 @@ function renderPriorityTable(items) {
 
     tbody.innerHTML = items.map(item => {
         const priorityClass = item.priority_label === 'Critical' ? 'critical' :
-                              item.priority_label === 'High' ? 'high' :
-                              item.priority_label === 'Medium' ? 'medium' : 'low';
+            item.priority_label === 'High' ? 'high' :
+                item.priority_label === 'Medium' ? 'medium' : 'low';
         const riskPct = ((item.risk_score || 0) * 100).toFixed(0);
         const priorityScore = ((item.priority_score || 0) * 100).toFixed(0);
         const loss = Number(item.estimated_loss || 0);
@@ -924,7 +982,7 @@ function renderRootCauseSummary(data) {
             <div style="margin-bottom: 15px; padding: 12px; background: rgba(239, 68, 68, 0.05); border-radius: var(--radius-md); border: 1px solid rgba(239, 68, 68, 0.1);">
                 <div style="font-size: 10px; color: var(--accent-red); text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Primary Source</div>
                 <div style="font-size: 13px; color: var(--text-base); font-weight: 600;">${pv.vendor || 'N/A'}</div>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${pv.percentage || 0}% of all shadow purchases ($${Number(pv.total_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})})</div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${pv.percentage || 0}% of all shadow purchases ($${Number(pv.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })})</div>
             </div>
 
             <div style="margin-bottom: 15px; padding: 12px; background: rgba(245, 158, 11, 0.05); border-radius: var(--radius-md); border: 1px solid rgba(245, 158, 11, 0.1);">
@@ -945,7 +1003,7 @@ function renderRootCauseSummary(data) {
                 ${data.vendor_breakdown.slice(0, 5).map(v => `
                     <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px;">
                         <span style="color: var(--text-base);">${v.vendor}</span>
-                        <span style="color: var(--text-muted);">${v.count} items - $${Number(v.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                        <span style="color: var(--text-muted);">${v.count} items - $${Number(v.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                 `).join('')}
             </div>
@@ -1061,7 +1119,7 @@ function renderProcurementTable(pos) {
     tbody.innerHTML = pos.map(p => {
         const statusClass = (p.status || '').includes('Resolved') ? 'resolved'
             : (p.status || '').includes('Received') ? 'received'
-            : (p.status || '').includes('Ordered') ? 'ordered' : 'matched';
+                : (p.status || '').includes('Ordered') ? 'ordered' : 'matched';
 
         return `<tr>
             <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--brand-secondary)">${p.id}</td>
@@ -1099,14 +1157,20 @@ function renderVendorTable(vendors) {
         const trustColor = trust > 70 ? 'var(--accent-emerald)' : trust > 40 ? 'var(--accent-amber)' : 'var(--accent-red)';
 
         return `<tr>
-            <td><strong>${v.name || '-'}</strong></td>
-            <td style="font-size:12px">${v.category || '-'}</td>
-            <td><span class="badge badge-${riskClass}">${v.risk_level}</span></td>
+            <td><strong>${escapeHtml(v.name || '-')}</strong></td>
+            <td style="font-size:12px">${escapeHtml(v.category || '-')}</td>
+            <td><span class="badge badge-${riskClass}">${escapeHtml(v.risk_level || '')}</span></td>
             <td>
                 <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${trustColor}">${trust.toFixed(0)}%</span>
                 <div class="trust-bar"><div class="trust-fill" style="width:${trust}%;background:${trustColor}"></div></div>
             </td>
             <td>${v.approved ? '<span style="color:var(--accent-emerald)">✓ Yes</span>' : '<span style="color:var(--accent-red)">✕ No</span>'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline" onclick="uploadContract('${escapeHtml(v.name || '')}')">📄 Upload MSA</button>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline" onclick="viewVendorCompliance('${escapeHtml(v.name || '')}')">✅ Compliance</button>
+            </td>
         </tr>`;
     }).join('');
 }
@@ -1253,40 +1317,9 @@ function renderRecommendations(recs) {
 async function fetchAuditLog() {
     try {
         const res = await fetch('/api/audit');
-        if (!res.ok) {
-            console.warn('[AUDIT] Response not OK:', res.status);
-            renderAuditFallback();
-            return;
-        }
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-            renderAuditTable(data);
-        } else {
-            renderAuditFallback();
-        }
-    } catch (e) {
-        console.warn('[AUDIT] Fetch failed:', e);
-        renderAuditFallback();
-    }
-}
-
-function renderAuditFallback() {
-    const now = new Date();
-    const fmt = (d) => d.toISOString().replace('T', ' ').slice(0, 19);
-    const fallback = [
-        { timestamp: fmt(now), action: 'MODE_CHANGE', user: 'System Administrator', target: '-', details: 'Data mode switched to Synthetic for demonstration.' },
-        { timestamp: fmt(new Date(now - 3600000)), action: 'EXPORT', user: 'System Administrator', target: '-', details: 'Comprehensive Excel audit report exported for compliance review.' },
-        { timestamp: fmt(new Date(now - 7200000)), action: 'RECTIFY', user: 'System Administrator', target: 'SH-001', details: 'Shadow purchase rectified — converted to PO-2026-0042.' },
-        { timestamp: fmt(new Date(now - 10800000)), action: 'FEEDBACK', user: 'M. Miller', target: 'SH-003', details: 'Human feedback: Confirmed shadow purchase — risk score adjusted.' },
-        { timestamp: fmt(new Date(now - 14400000)), action: 'PREVENTIVE_CHECK', user: 'Tech_Operator_01', target: 'INV-001', details: "Part 'Bearing 6204' — Decision: Use Internal Stock (Confidence: 82%)" },
-        { timestamp: fmt(new Date(now - 21600000)), action: 'SIMULATOR_START', user: 'System Administrator', target: '-', details: 'Real-time simulator activated. Background monitoring enabled.' },
-        { timestamp: fmt(new Date(now - 28800000)), action: 'RISK_CALIBRATION', user: 'System', target: '-', details: 'Vendor risk levels calibrated. High-risk vendors flagged.' },
-        { timestamp: fmt(new Date(now - 32400000)), action: 'CONFIDENCE_INIT', user: 'System', target: '-', details: 'Inventory confidence scores initialized for all tracked SKUs.' },
-        { timestamp: fmt(new Date(now - 36000000)), action: 'DETECTION_RUN', user: 'System', target: '-', details: 'Initial anomaly detection sweep completed. Shadow purchases identified.' },
-        { timestamp: fmt(new Date(now - 39600000)), action: 'DATA_SEED', user: 'System Administrator', target: '-', details: 'Production dataset loaded: transactions, procurement, vendors, inventory.' },
-        { timestamp: fmt(new Date(now - 43200000)), action: 'SYSTEM_INIT', user: 'System Administrator', target: '-', details: 'ShadowSync AI v4.0 engine initialized. Detection modules online.' },
-    ];
-    renderAuditTable(fallback);
+        renderAuditTable(data);
+    } catch (e) { console.warn('[AUDIT] Fetch failed'); }
 }
 
 function renderAuditTable(logs) {
@@ -1297,9 +1330,9 @@ function renderAuditTable(logs) {
         const actType = (log.action || '').toLowerCase();
         const actClass = actType.includes('rectif') || actType.includes('resolve') ? 'act-rectify'
             : actType.includes('dismiss') ? 'act-dismiss'
-            : actType.includes('feedback') ? 'act-feedback'
-            : actType.includes('export') ? 'act-export'
-            : actType.includes('mode') ? 'act-mode' : '';
+                : actType.includes('feedback') ? 'act-feedback'
+                    : actType.includes('export') ? 'act-export'
+                        : actType.includes('mode') ? 'act-mode' : '';
 
         return `<tr>
             <td style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-subtle)">${log.timestamp || '-'}</td>
@@ -1482,7 +1515,7 @@ async function submitFeedback() {
 async function verifiedDownload(url, defaultName = 'Document.pdf', toastInfo = 'Preparing Document...') {
     try {
         if (toastInfo) showToast(toastInfo, 'info');
-        
+
         const res = await fetch(url);
         if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
@@ -1504,9 +1537,9 @@ async function verifiedDownload(url, defaultName = 'Document.pdf', toastInfo = '
         const link = document.createElement('a');
         link.href = blobUrl;
         link.download = filename;
-        document.body.appendChild(link); 
+        document.body.appendChild(link);
         link.click();
-        
+
         setTimeout(() => {
             link.remove();
             URL.revokeObjectURL(blobUrl);
@@ -1550,7 +1583,7 @@ async function downloadPO(poId) {
 // Unified Blob Trigger removed. Native browser navigation handles attachments natively.
 
 // Add prototype helper for capitalization
-String.prototype.capitalize = function() {
+String.prototype.capitalize = function () {
     return this.charAt(0).toUpperCase() + this.slice(1);
 };
 
@@ -1578,7 +1611,7 @@ async function fetchOpsInsights() {
         const data = await res.json();
         const container = document.getElementById('ops-insights-list');
         if (!container) return;
-        
+
         container.innerHTML = data.behaviors.map(b => `
             <div class="insight-card" style="padding:12px; background:rgba(255,255,255,0.03); border-radius:10px; margin-bottom:8px; border-left:3px solid ${b.risk_level === 'High' ? 'var(--accent-red)' : 'var(--brand-primary)'}">
                 <div style="font-weight:600; font-size:13px">${b.employee_id} (${b.department})</div>
@@ -1595,19 +1628,133 @@ async function fetchTrends() {
         const res = await fetch('/api/trends');
         if (!res.ok) return;
         const data = await res.json();
-        
+
+        // Update riskTrend rolling chart (live exposure line)
         const chart = state.charts.riskTrend;
         if (chart && data.dates && data.dates.length > 0) {
             chart.data.labels = data.dates;
             chart.data.datasets[0].data = data.exposure;
             chart.update();
         }
-        
+
+        // Render the YTD Trend chart in the Trend Insights panel
+        renderTrendChart(data);
+
         const timestamp = document.getElementById('trend-updated');
         if (timestamp) timestamp.textContent = `Last sync: ${new Date().toLocaleTimeString()}`;
     } catch (e) {
         console.warn('Trends fetch failed');
     }
+}
+
+/**
+ * Render (or update) the #trendChart canvas with daily shadow vs compliance data.
+ * Always destroys the previous instance before re-creating to avoid canvas reuse errors.
+ * Reads from /api/trends response: dates[], shadow_counts[], compliance_rates[].
+ */
+function renderTrendChart(data) {
+    const canvas = document.getElementById('trendChart');
+    if (!canvas) return;
+
+    // Destroy any existing chart instance before re-creating (prevents canvas reuse error)
+    if (window._trendChartInstance) {
+        window._trendChartInstance.destroy();
+        window._trendChartInstance = null;
+    }
+
+    // Build labels and datasets — prefer time-series arrays, fall back to weekly summary
+    let labels, shadowData, complianceData;
+
+    if (data.dates && data.dates.length > 0) {
+        // Format "2025-05-10" → "May 10"
+        labels = data.dates.map(d => {
+            try {
+                return new Date(d).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+            } catch { return d; }
+        });
+        shadowData     = data.shadow_counts   || data.exposure || [];
+        complianceData = data.compliance_rates || shadowData.map(v => Math.max(0, 100 - (v * 10)));
+    } else {
+        // Fallback: two-bar weekly summary
+        const baseCount = data.this_week_count || 5;
+        const prevCount = Math.round(baseCount / (1 + (data.week_over_week_change_pct || 0) / 100));
+        labels         = ['Last Week', 'This Week'];
+        shadowData     = [prevCount, baseCount];
+        complianceData = [100 - prevCount * 2, 100 - baseCount * 2].map(v => Math.max(0, v));
+    }
+
+    window._trendChartInstance = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label:           'Shadow Purchases',
+                    data:            shadowData,
+                    backgroundColor: 'rgba(220, 53, 69, 0.72)',
+                    borderColor:     'rgba(220, 53, 69, 1)',
+                    borderWidth:     1.5,
+                    borderRadius:    4,
+                    yAxisID:         'y',
+                },
+                {
+                    label:           'Compliance Rate (%)',
+                    data:            complianceData,
+                    type:            'line',
+                    borderColor:     'rgba(25, 197, 94, 0.9)',
+                    backgroundColor: 'rgba(25, 197, 94, 0.08)',
+                    borderWidth:     2,
+                    pointRadius:     3,
+                    tension:         0.35,
+                    fill:            true,
+                    yAxisID:         'y1',
+                },
+            ],
+        },
+        options: {
+            responsive:           true,
+            maintainAspectRatio:  false,
+            interaction:          { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels:   { color: 'rgba(255,255,255,0.6)', font: { size: 11 }, boxWidth: 12, padding: 16 },
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(10,15,35,0.92)',
+                    titleColor:      '#fff',
+                    bodyColor:       'rgba(255,255,255,0.7)',
+                    borderColor:     'rgba(255,255,255,0.1)',
+                    borderWidth:     1,
+                    callbacks: {
+                        label: ctx => ctx.datasetIndex === 1
+                            ? `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`
+                            : `${ctx.dataset.label}: ${ctx.parsed.y}`,
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    grid:  { color: 'rgba(255,255,255,0.04)' },
+                    ticks: { color: 'rgba(255,255,255,0.45)', font: { size: 10 }, maxRotation: 45 },
+                },
+                y: {
+                    position:    'left',
+                    title:       { display: true, text: 'Shadow count', color: 'rgba(220,53,69,0.7)', font: { size: 10 } },
+                    grid:        { color: 'rgba(255,255,255,0.04)' },
+                    ticks:       { color: 'rgba(255,255,255,0.45)', font: { size: 10 } },
+                    beginAtZero: true,
+                },
+                y1: {
+                    position: 'right',
+                    title:    { display: true, text: 'Compliance %', color: 'rgba(25,197,94,0.7)', font: { size: 10 } },
+                    grid:     { drawOnChartArea: false },
+                    ticks:    { color: 'rgba(255,255,255,0.45)', font: { size: 10 }, callback: v => v + '%' },
+                    min: 0, max: 100,
+                },
+            },
+        },
+    });
 }
 
 // ==============================================
@@ -1650,7 +1797,7 @@ function addAIMessage(content, role = 'assistant') {
 
     const contentDiv = document.createElement('div');
     contentDiv.className = 'ai-msg-content';
-    
+
     // Simple markdown-like formatting
     let formatted = content
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -1662,7 +1809,7 @@ function addAIMessage(content, role = 'assistant') {
         .replace(/^- (.*$)/gm, '• $1')
         .replace(/^\d+\. (.*$)/gm, '<span style="display:block;padding-left:16px;text-indent:-16px">$&</span>')
         .replace(/\n/g, '<br>');
-    
+
     contentDiv.innerHTML = formatted;
 
     msgDiv.appendChild(avatar);
@@ -1717,7 +1864,10 @@ async function sendAIMessage() {
     try {
         const res = await fetch('/api/ai/chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('ss_token')}`
+            },
             body: JSON.stringify({
                 message: message,
                 history: aiState.history.slice(-10),
@@ -1750,7 +1900,9 @@ async function checkAIHealth() {
     showTypingIndicator();
 
     try {
-        const res = await fetch('/api/ai/health');
+        const res = await fetch('/api/ai/health', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('ss_token')}` }
+        });
         removeTypingIndicator();
 
         if (!res.ok) {
@@ -1766,9 +1918,9 @@ async function checkAIHealth() {
         const cohereIcon = cohereStatus === 'connected' ? '✅' : cohereStatus === 'error' ? '❌' : '⚠️';
 
         addAIMessage(
-            `**AI Provider Status**\n\n` +
-            `${groqIcon} **Groq** (llama-3.3-70b): ${groqStatus}${data.groq?.error ? ' - ' + data.groq.error : ''}\n` +
-            `${cohereIcon} **Cohere** (command-r-plus): ${cohereStatus}${data.cohere?.error ? ' - ' + data.cohere.error : ''}\n\n` +
+            `**AI Provider Status**nn` +
+            `${groqIcon} **Groq** (llama-3.3-70b): ${groqStatus}${data.groq?.error ? ' - ' + data.groq.error : ''}n` +
+            `${cohereIcon} **Cohere** (command-r-plus): ${cohereStatus}${data.cohere?.error ? ' - ' + data.cohere.error : ''}nn` +
             `${groqStatus === 'connected' && cohereStatus === 'connected' ? '🟢 All systems operational!' : '🟡 Some providers may be unavailable.'}`,
             'assistant'
         );
@@ -1789,7 +1941,9 @@ async function aiSummarizeRisks() {
     showTypingIndicator();
 
     try {
-        const res = await fetch('/api/ai/summarize');
+        const res = await fetch('/api/ai/summarize', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('ss_token')}` }
+        });
         removeTypingIndicator();
 
         if (!res.ok) {
@@ -1799,7 +1953,7 @@ async function aiSummarizeRisks() {
 
         const data = await res.json();
         addAIMessage(
-            `**📊 Executive Risk Summary** (Cohere)\n\n${data.summary || 'No summary available.'}`,
+            `**📊 Executive Risk Summary** (Cohere)nn${data.summary || 'No summary available.'}`,
             'assistant'
         );
     } catch (e) {
@@ -1813,7 +1967,9 @@ async function aiAnalyzeShadow(shadowId) {
     showTypingIndicator();
 
     try {
-        const res = await fetch(`/api/ai/analyze/${shadowId}`);
+        const res = await fetch(`/api/ai/analyze/${shadowId}`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('ss_token')}` }
+        });
         removeTypingIndicator();
 
         if (!res.ok) {
@@ -1823,7 +1979,7 @@ async function aiAnalyzeShadow(shadowId) {
 
         const data = await res.json();
         addAIMessage(
-            `**🧠 Deep Analysis - Shadow #${shadowId}** (Groq)\n\n${data.response || 'No analysis available.'}`,
+            `**🧠 Deep Analysis - Shadow #${shadowId}** (Groq)nn${data.response || 'No analysis available.'}`,
             'assistant'
         );
     } catch (e) {
@@ -1850,8 +2006,8 @@ function quickSearch(partName) {
 
 // ── Main preventive check runner ─────────────────────────────
 async function runPreventiveCheck() {
-    const input  = document.getElementById('preventive-search-input');
-    const btn    = document.getElementById('preventive-search-btn');
+    const input = document.getElementById('preventive-search-input');
+    const btn = document.getElementById('preventive-search-btn');
     const partName = (input?.value || '').trim();
 
     if (!partName) {
@@ -1896,36 +2052,36 @@ async function runPreventiveCheck() {
 
 // ── Availability Card ─────────────────────────────────────────
 function renderAvailabilityCard(data) {
-    const qty      = document.getElementById('avail-qty');
-    const loc      = document.getElementById('avail-location');
-    const sku      = document.getElementById('avail-sku');
-    const icon     = document.getElementById('avail-icon');
-    const card     = document.getElementById('card-availability');
+    const qty = document.getElementById('avail-qty');
+    const loc = document.getElementById('avail-location');
+    const sku = document.getElementById('avail-sku');
+    const icon = document.getElementById('avail-icon');
+    const card = document.getElementById('card-availability');
 
     if (!data.found || !data.retrieval) {
-        if (qty)  qty.textContent = 'Not Found';
-        if (loc)  loc.textContent = 'Location: -';
-        if (sku)  sku.textContent = 'SKU: -';
+        if (qty) qty.textContent = 'Not Found';
+        if (loc) loc.textContent = 'Location: -';
+        if (sku) sku.textContent = 'SKU: -';
         if (icon) icon.textContent = '❌';
         if (card) card.style.borderTop = '3px solid #ef4444';
         return;
     }
 
     const inStock = data.retrieval.in_stock;
-    if (qty)  qty.textContent  = inStock ? `${data.quantity_available} units` : 'Out of Stock';
-    if (loc)  loc.textContent  = `Location: ${data.retrieval.warehouse_location || '-'}`;
-    if (sku)  sku.textContent  = `SKU: ${data.item_sku || '-'}`;
+    if (qty) qty.textContent = inStock ? `${data.quantity_available} units` : 'Out of Stock';
+    if (loc) loc.textContent = `Location: ${data.retrieval.warehouse_location || '-'}`;
+    if (sku) sku.textContent = `SKU: ${data.item_sku || '-'}`;
     if (icon) icon.textContent = inStock ? '📦' : '❌';
     if (card) card.style.borderTop = `3px solid ${inStock ? '#22c55e' : '#ef4444'}`;
 }
 
 // ── Confidence Card with Animated Ring ───────────────────────
 function renderConfidenceCard(data) {
-    const scoreEl    = document.getElementById('conf-score');
-    const labelEl    = document.getElementById('conf-label');
+    const scoreEl = document.getElementById('conf-score');
+    const labelEl = document.getElementById('conf-label');
     const verifiedEl = document.getElementById('conf-verified');
-    const ringFill   = document.getElementById('confidence-ring-fill');
-    const card       = document.getElementById('card-confidence');
+    const ringFill = document.getElementById('confidence-ring-fill');
+    const card = document.getElementById('card-confidence');
 
     if (!data.confidence) {
         if (scoreEl) scoreEl.textContent = 'N/A';
@@ -1933,14 +2089,14 @@ function renderConfidenceCard(data) {
         return;
     }
 
-    const conf  = data.confidence;
+    const conf = data.confidence;
     const score = conf.confidence_score || 0;
     const color = conf.confidence_color || '#22c55e';
 
-    if (scoreEl)    scoreEl.textContent  = `${score.toFixed(0)}%`;
-    if (labelEl)    labelEl.innerHTML    = `<span style="color:${color}; font-weight:700;">${conf.confidence_label || '-'}</span> Confidence`;
+    if (scoreEl) scoreEl.textContent = `${score.toFixed(0)}%`;
+    if (labelEl) labelEl.innerHTML = `<span style="color:${color}; font-weight:700;">${conf.confidence_label || '-'}</span> Confidence`;
     if (verifiedEl) verifiedEl.textContent = `Last Verified: ${conf.last_verified || 'Unknown'}`;
-    if (card)       card.style.borderTop = `3px solid ${color}`;
+    if (card) card.style.borderTop = `3px solid ${color}`;
 
     // Animate ring (circumference of r=22 circle = 2π×22 ≈ 138.2)
     if (ringFill) {
@@ -1953,68 +2109,68 @@ function renderConfidenceCard(data) {
 
 // ── Retrieval Time Card ───────────────────────────────────────
 function renderRetrievalCard(data) {
-    const timeEl   = document.getElementById('retrieval-time');
-    const locEl    = document.getElementById('retrieval-loc');
-    const labelEl  = document.getElementById('retrieval-label');
-    const iconEl   = document.getElementById('retrieval-icon');
-    const card     = document.getElementById('card-retrieval');
+    const timeEl = document.getElementById('retrieval-time');
+    const locEl = document.getElementById('retrieval-loc');
+    const labelEl = document.getElementById('retrieval-label');
+    const iconEl = document.getElementById('retrieval-icon');
+    const card = document.getElementById('card-retrieval');
 
     if (!data.retrieval) {
-        if (timeEl)  timeEl.textContent = '-';
-        if (locEl)   locEl.textContent  = 'Location: -';
+        if (timeEl) timeEl.textContent = '-';
+        if (locEl) locEl.textContent = 'Location: -';
         if (labelEl) labelEl.textContent = '-';
         return;
     }
 
     const r = data.retrieval;
     if (!r.in_stock) {
-        if (timeEl)  timeEl.textContent  = 'N/A';
-        if (locEl)   locEl.textContent   = 'Item not in stock';
+        if (timeEl) timeEl.textContent = 'N/A';
+        if (locEl) locEl.textContent = 'Item not in stock';
         if (labelEl) labelEl.textContent = 'Cannot retrieve';
-        if (iconEl)  iconEl.textContent  = '🚫';
-        if (card)    card.style.borderTop = '3px solid #ef4444';
+        if (iconEl) iconEl.textContent = '🚫';
+        if (card) card.style.borderTop = '3px solid #ef4444';
         return;
     }
 
-    if (timeEl)  timeEl.innerHTML  = `<span style="color:${r.time_color}">${r.estimated_minutes} min</span>`;
-    if (locEl)   locEl.textContent = `Location: ${r.warehouse_location || '-'}`;
+    if (timeEl) timeEl.innerHTML = `<span style="color:${r.time_color}">${r.estimated_minutes} min</span>`;
+    if (locEl) locEl.textContent = `Location: ${r.warehouse_location || '-'}`;
     if (labelEl) labelEl.innerHTML = `<span style="color:${r.time_color}; font-weight:700;">${r.time_label}</span> - ~${r.distance_km} km away`;
-    if (iconEl)  iconEl.textContent = r.time_label === 'Fast' ? '🏃' : r.time_label === 'Moderate' ? '🚶' : '🐢';
-    if (card)    card.style.borderTop = `3px solid ${r.time_color}`;
+    if (iconEl) iconEl.textContent = r.time_label === 'Fast' ? '🏃' : r.time_label === 'Moderate' ? '🚶' : '🐢';
+    if (card) card.style.borderTop = `3px solid ${r.time_color}`;
 }
 
 // ── Emergency Decision Panel ──────────────────────────────────
 function renderDecisionPanel(data) {
-    const card      = document.getElementById('decision-card');
-    const iconEl    = document.getElementById('decision-icon-main');
-    const textEl    = document.getElementById('decision-text');
-    const reasonEl  = document.getElementById('decision-reason');
-    const timeEl    = document.getElementById('decision-timestamp');
+    const card = document.getElementById('decision-card');
+    const iconEl = document.getElementById('decision-icon-main');
+    const textEl = document.getElementById('decision-text');
+    const reasonEl = document.getElementById('decision-reason');
+    const timeEl = document.getElementById('decision-timestamp');
 
-    const color  = data.decision_color || '#f59e0b';
-    const icon   = data.decision_icon || '⚠️';
-    const text   = data.decision || '-';
+    const color = data.decision_color || '#f59e0b';
+    const icon = data.decision_icon || '⚠️';
+    const text = data.decision || '-';
     const reason = data.reason || '-';
 
     if (card) {
-        card.style.background   = `${color}14`;
-        card.style.borderColor  = color;
-        card.style.color        = color;
+        card.style.background = `${color}14`;
+        card.style.borderColor = color;
+        card.style.color = color;
     }
-    if (iconEl)   iconEl.textContent  = icon;
-    if (textEl)   textEl.textContent  = text;
+    if (iconEl) iconEl.textContent = icon;
+    if (textEl) textEl.textContent = text;
     if (reasonEl) { reasonEl.textContent = reason; reasonEl.style.color = 'var(--text-muted)'; }
-    if (timeEl)   timeEl.textContent  = data.timestamp || '-';
+    if (timeEl) timeEl.textContent = data.timestamp || '-';
 
     // Adjust action button emphasis based on decision
-    const btnInternal  = document.getElementById('btn-use-internal');
-    const btnProcure   = document.getElementById('btn-proceed-purchase');
-    const isInternal   = text.toLowerCase().includes('internal stock');
+    const btnInternal = document.getElementById('btn-use-internal');
+    const btnProcure = document.getElementById('btn-proceed-purchase');
+    const isInternal = text.toLowerCase().includes('internal stock');
     const isProcurement = text.toLowerCase().includes('procurement');
 
     if (btnInternal && btnProcure) {
-        btnInternal.style.opacity  = isInternal ? '1' : '0.6';
-        btnProcure.style.opacity   = isProcurement ? '1' : '0.6';
+        btnInternal.style.opacity = isInternal ? '1' : '0.6';
+        btnProcure.style.opacity = isProcurement ? '1' : '0.6';
     }
 }
 
@@ -2028,14 +2184,14 @@ function renderConfidenceBreakdown(data) {
         return;
     }
 
-    const bd  = data.confidence.breakdown || {};
+    const bd = data.confidence.breakdown || {};
     const total = data.confidence.confidence_score || 0;
     const color = data.confidence.confidence_color || '#22c55e';
 
     const rows = [
-        { label: 'Recency (35%)',      value: bd.recency || 0,      max: 35 },
-        { label: 'Stability (25%)',    value: bd.stability || 0,    max: 25 },
-        { label: 'Accuracy (25%)',     value: bd.accuracy || 0,     max: 25 },
+        { label: 'Recency (35%)', value: bd.recency || 0, max: 35 },
+        { label: 'Stability (25%)', value: bd.stability || 0, max: 25 },
+        { label: 'Accuracy (25%)', value: bd.accuracy || 0, max: 25 },
         { label: 'Verification (15%)', value: bd.verification || 0, max: 15 },
     ];
 
@@ -2101,9 +2257,9 @@ function renderAlternatives(alternatives) {
 
 // ── All Matches Panel ─────────────────────────────────────────
 function renderAllMatches(data) {
-    const panel     = document.getElementById('all-matches-panel');
-    const list      = document.getElementById('all-matches-list');
-    const countEl   = document.getElementById('match-count');
+    const panel = document.getElementById('all-matches-panel');
+    const list = document.getElementById('all-matches-list');
+    const countEl = document.getElementById('match-count');
 
     if (!data.found || !data.all_matches || data.all_matches.length <= 1) {
         if (panel) panel.style.display = 'none';
@@ -2132,15 +2288,15 @@ async function logUserDecision(userAction) {
 
     try {
         const payload = {
-            item_id:          _currentDecision.item_id || null,
-            part_name:        _currentDecision.item_name || document.getElementById('preventive-search-input')?.value || '-',
+            item_id: _currentDecision.item_id || null,
+            part_name: _currentDecision.item_name || document.getElementById('preventive-search-input')?.value || '-',
             confidence_score: _currentDecision.confidence?.confidence_score || 0,
-            retrieval_time:   _currentDecision.retrieval?.estimated_minutes || null,
-            decision:         _currentDecision.decision || '-',
-            reason:           _currentDecision.reason || '',
-            user_proceeded:   userAction === 'overridden',
-            user_action:      userAction,
-            department:       dept,
+            retrieval_time: _currentDecision.retrieval?.estimated_minutes || null,
+            decision: _currentDecision.decision || '-',
+            reason: _currentDecision.reason || '',
+            user_proceeded: userAction === 'overridden',
+            user_action: userAction,
+            department: dept,
         };
 
         const res = await fetch('/api/preventive/log-decision', {
@@ -2176,7 +2332,7 @@ async function logUserDecision(userAction) {
 // ── Decision History ──────────────────────────────────────────
 async function loadDecisionHistory() {
     const panel = document.getElementById('preventive-history-panel');
-    const body  = document.getElementById('decision-history-body');
+    const body = document.getElementById('decision-history-body');
 
     if (!panel || !body) return;
 
@@ -2187,7 +2343,7 @@ async function loadDecisionHistory() {
     }
 
     try {
-        const res  = await fetch('/api/preventive/decision-history?limit=50');
+        const res = await fetch('/api/preventive/decision-history?limit=50');
         const logs = await res.json();
         panel.style.display = 'block';
 
@@ -2205,7 +2361,7 @@ async function loadDecisionHistory() {
                     <td style="font-size:11px; color:var(--text-subtle);">${l.logged_at || '-'}</td>
                     <td style="font-weight:600; font-size:12px;">${l.part_name || '-'}</td>
                     <td><span style="color:${decisionColor}; font-size:11px; font-weight:700;">${l.decision || '-'}</span></td>
-                    <td style="text-align:center; color:${(l.confidence_score||0) >= 70 ? '#22c55e' : '#f59e0b'};">${(l.confidence_score || 0).toFixed(0)}%</td>
+                    <td style="text-align:center; color:${(l.confidence_score || 0) >= 70 ? '#22c55e' : '#f59e0b'};">${(l.confidence_score || 0).toFixed(0)}%</td>
                     <td style="text-align:center; color:var(--text-muted);">${l.retrieval_time ? l.retrieval_time + ' min' : '-'}</td>
                     <td><span style="color:${actionColor}; font-size:11px; font-weight:700;">${l.user_action || '-'}</span></td>
                     <td style="color:var(--text-subtle); font-size:11px;">${l.department || '-'}</td>
@@ -2220,7 +2376,7 @@ async function loadDecisionHistory() {
 
 // ── Confidence Overview ───────────────────────────────────────
 async function loadConfidenceOverview() {
-    const panel   = document.getElementById('confidence-overview-panel');
+    const panel = document.getElementById('confidence-overview-panel');
     const content = document.getElementById('confidence-overview-content');
 
     if (!panel || !content) return;
@@ -2234,7 +2390,7 @@ async function loadConfidenceOverview() {
     content.innerHTML = '<div class="text-muted small text-center">Loading confidence overview...</div>';
 
     try {
-        const res  = await fetch('/api/preventive/confidence');
+        const res = await fetch('/api/preventive/confidence');
         const data = await res.json();
         const items = data.items || [];
 
@@ -2276,9 +2432,9 @@ async function loadConfidenceOverview() {
                     </thead>
                     <tbody>
                         ${items.map(item => {
-                            const r = item.retrieval || {};
-                            const confColor = item.confidence_color || '#94a3b8';
-                            return `
+            const r = item.retrieval || {};
+            const confColor = item.confidence_color || '#94a3b8';
+            return `
                                 <tr>
                                     <td style="font-weight: 600; font-size: 12px;">${item.item_name}</td>
                                     <td>
@@ -2299,7 +2455,7 @@ async function loadConfidenceOverview() {
                                     <td style="font-size: 11px; color: var(--text-subtle);">${r.warehouse_location || '-'}</td>
                                 </tr>
                             `;
-                        }).join('')}
+        }).join('')}
                     </tbody>
                 </table>
             </div>
@@ -2331,13 +2487,13 @@ function renderVendorRings(c, data) {
         return;
     }
     const rings = data.rings || [];
-    const meta  = data.graph_meta || {};
+    const meta = data.graph_meta || {};
 
     const summary = `
         <div class="row g-2 mb-3">
-            ${[['🏭','Vendors Analysed',data.vendors_analyzed],['🔗','Rings Detected',data.rings_detected],
-               ['🚨','Critical Rings',data.critical_rings],['💰','Exposure','₹'+(data.total_exposure||0).toLocaleString()]
-            ].map(([i,l,v])=>`
+            ${[['🏭', 'Vendors Analysed', data.vendors_analyzed], ['🔗', 'Rings Detected', data.rings_detected],
+        ['🚨', 'Critical Rings', data.critical_rings], ['💰', 'Exposure', '₹' + (data.total_exposure || 0).toLocaleString()]
+        ].map(([i, l, v]) => `
                 <div class="col-6 col-md-3">
                     <div class="card border-0 text-center p-2" style="background:rgba(255,255,255,.05);border-radius:10px">
                         <div style="font-size:1.5rem">${i}</div>
@@ -2346,7 +2502,7 @@ function renderVendorRings(c, data) {
                     </div>
                 </div>`).join('')}
         </div>
-        <p class="text-muted small">Graph: ${meta.nodes||0} nodes · ${meta.edges||0} edges · ${meta.algorithm||'N/A'}</p>`;
+        <p class="text-muted small">Graph: ${meta.nodes || 0} nodes · ${meta.edges || 0} edges · ${meta.algorithm || 'N/A'}</p>`;
 
     const ringCards = rings.length === 0
         ? '<div class="alert alert-success">✅ No collusion rings detected.</div>'
@@ -2357,29 +2513,29 @@ function renderVendorRings(c, data) {
                         <div>
                             <span class="badge me-2" style="background:${r.severity_color}">${r.severity}</span>
                             <strong style="color:#f8f9fa">${r.ring_id}</strong>
-                            <span class="text-muted ms-2 small">${r.member_count} vendors · Risk ${(r.ring_risk_score*100).toFixed(0)}%</span>
+                            <span class="text-muted ms-2 small">${r.member_count} vendors · Risk ${(r.ring_risk_score * 100).toFixed(0)}%</span>
                         </div>
-                        <span class="text-warning small fw-bold">₹${(r.total_exposure||0).toLocaleString()}</span>
+                        <span class="text-warning small fw-bold">₹${(r.total_exposure || 0).toLocaleString()}</span>
                     </div>
-                    <div class="mb-2">${r.members.map(m=>`<span class="badge bg-secondary me-1">${m}</span>`).join('')}</div>
-                    ${r.shared_employees.length?`<div class="small text-warning mb-1">👤 Shared: ${r.shared_employees.slice(0,3).join(', ')}</div>`:''}
-                    ${r.shared_departments.length?`<div class="small text-info mb-1">🏢 Depts: ${r.shared_departments.slice(0,3).join(', ')}</div>`:''}
+                    <div class="mb-2">${r.members.map(m => `<span class="badge bg-secondary me-1">${m}</span>`).join('')}</div>
+                    ${r.shared_employees.length ? `<div class="small text-warning mb-1">👤 Shared: ${r.shared_employees.slice(0, 3).join(', ')}</div>` : ''}
+                    ${r.shared_departments.length ? `<div class="small text-info mb-1">🏢 Depts: ${r.shared_departments.slice(0, 3).join(', ')}</div>` : ''}
                     <details class="mt-2">
                         <summary class="small text-muted" style="cursor:pointer">AI Explanation (${r.explanation_factors.length} factors)</summary>
-                        <ul class="mt-2 small text-light ps-3">${r.explanation_factors.map(f=>`<li>${f}</li>`).join('')}</ul>
+                        <ul class="mt-2 small text-light ps-3">${r.explanation_factors.map(f => `<li>${f}</li>`).join('')}</ul>
                     </details>
                 </div>
             </div>`).join('');
 
-    const isolated = (data.isolated_vendors||[]).length ? `
+    const isolated = (data.isolated_vendors || []).length ? `
         <div class="mt-3">
             <h6 class="text-warning">⚡ High-Risk Isolated Vendors</h6>
             <table class="table table-sm table-dark table-bordered">
                 <thead><tr><th>Vendor</th><th>Shadows</th><th>Avg Risk</th><th>Exposure</th></tr></thead>
-                <tbody>${data.isolated_vendors.map(v=>`
+                <tbody>${data.isolated_vendors.map(v => `
                     <tr><td>${v.vendor_name}</td><td>${v.shadow_count}</td>
-                    <td><span class="badge bg-warning text-dark">${(v.avg_risk_score*100).toFixed(0)}%</span></td>
-                    <td>₹${(v.total_exposure||0).toLocaleString()}</td></tr>`).join('')}
+                    <td><span class="badge bg-warning text-dark">${(v.avg_risk_score * 100).toFixed(0)}%</span></td>
+                    <td>₹${(v.total_exposure || 0).toLocaleString()}</td></tr>`).join('')}
                 </tbody>
             </table>
         </div>` : '';
@@ -2403,13 +2559,13 @@ async function loadMLTransparency() {
 }
 
 function renderMLTransparency(c, d) {
-    const drift   = d.drift || {};
+    const drift = d.drift || {};
     const fitness = d.fitness || {};
-    const cal     = d.calibration || {};
-    const fb      = d.feedback_impact || {};
-    const fw      = d.feature_weights || {};
-    const levers  = d.xai_levers || {};
-    const dc      = drift.drift_detected ? '#f97316' : '#22c55e';
+    const cal = d.calibration || {};
+    const fb = d.feedback_impact || {};
+    const fw = d.feature_weights || {};
+    const levers = d.xai_levers || {};
+    const dc = drift.drift_detected ? '#f97316' : '#22c55e';
 
     const fwBars = Object.entries(fw).map(([feat, w]) => {
         const pct = (w * 100).toFixed(1);
@@ -2422,18 +2578,18 @@ function renderMLTransparency(c, d) {
             </div></div>`;
     }).join('');
 
-    const pills = Object.entries(levers).map(([k,v]) =>
+    const pills = Object.entries(levers).map(([k, v]) =>
         `<span class="badge bg-secondary me-1 mb-1" style="font-size:.7rem">${k}: <strong>${v}</strong></span>`
     ).join('');
 
     c.innerHTML = `
         <div class="row g-2 mb-3">
-            ${[['Model',d.model_version,'#6366f1'],['Fitted',d.fitted?'✅ Yes':'❌ No',d.fitted?'#22c55e':'#ef4444'],
-               ['Precision',((fitness.precision||0)*100).toFixed(0)+'%','#f59e0b'],
-               ['FP Rate',((fitness.false_positive_rate||0)*100).toFixed(1)+'%','#ef4444'],
-               ['Samples',d.training_samples||0,'#0ea5e9'],
-               ['Confidence',cal.confidence_in_model||'N/A','#10b981']
-            ].map(([l,v,col])=>`
+            ${[['Model', d.model_version, '#6366f1'], ['Fitted', d.fitted ? '✅ Yes' : '❌ No', d.fitted ? '#22c55e' : '#ef4444'],
+        ['Precision', ((fitness.precision || 0) * 100).toFixed(0) + '%', '#f59e0b'],
+        ['FP Rate', ((fitness.false_positive_rate || 0) * 100).toFixed(1) + '%', '#ef4444'],
+        ['Samples', d.training_samples || 0, '#0ea5e9'],
+        ['Confidence', cal.confidence_in_model || 'N/A', '#10b981']
+        ].map(([l, v, col]) => `
                 <div class="col-4 col-md-2">
                     <div class="card border-0 p-2 text-center" style="background:rgba(255,255,255,.04);border-radius:10px">
                         <div style="color:${col};font-weight:700">${v}</div>
@@ -2449,20 +2605,20 @@ function renderMLTransparency(c, d) {
             </div>
             <div class="col-md-4">
                 <div class="card border-0 p-3 h-100" style="background:rgba(255,255,255,.04);border-radius:12px">
-                    <h6 style="color:${dc}">📊 Drift: <span class="badge" style="background:${dc};font-size:.7rem">${drift.status||'N/A'}</span></h6>
+                    <h6 style="color:${dc}">📊 Drift: <span class="badge" style="background:${dc};font-size:.7rem">${drift.status || 'N/A'}</span></h6>
                     <div class="small">
-                        <div class="d-flex justify-content-between mb-1"><span class="text-muted">Recent mean</span><span>${drift.recent_mean_risk||0}</span></div>
-                        <div class="d-flex justify-content-between mb-1"><span class="text-muted">Historical</span><span>${drift.historical_mean||0}</span></div>
+                        <div class="d-flex justify-content-between mb-1"><span class="text-muted">Recent mean</span><span>${drift.recent_mean_risk || 0}</span></div>
+                        <div class="d-flex justify-content-between mb-1"><span class="text-muted">Historical</span><span>${drift.historical_mean || 0}</span></div>
                         <div class="d-flex justify-content-between"><span class="text-muted">Delta</span>
-                            <span style="color:${dc};font-weight:700">${(drift.delta||0)>=0?'+':''}${drift.delta||0}</span></div>
+                            <span style="color:${dc};font-weight:700">${(drift.delta || 0) >= 0 ? '+' : ''}${drift.delta || 0}</span></div>
                     </div>
                     <hr style="border-color:rgba(255,255,255,.1)">
                     <h6 style="color:#0ea5e9">🔄 Feedback</h6>
                     <div class="small">
-                        <div class="d-flex justify-content-between mb-1"><span class="text-muted">Submissions</span><span>${fb.total_submissions||0}</span></div>
-                        <div class="d-flex justify-content-between mb-1"><span class="text-muted">Applied</span><span>${fb.applied||0}</span></div>
+                        <div class="d-flex justify-content-between mb-1"><span class="text-muted">Submissions</span><span>${fb.total_submissions || 0}</span></div>
+                        <div class="d-flex justify-content-between mb-1"><span class="text-muted">Applied</span><span>${fb.applied || 0}</span></div>
                         <div class="d-flex justify-content-between"><span class="text-muted">Global offset</span>
-                            <span style="color:#f59e0b">${fb.global_risk_offset||0}</span></div>
+                            <span style="color:#f59e0b">${fb.global_risk_offset || 0}</span></div>
                     </div>
                 </div>
             </div>
@@ -2470,7 +2626,7 @@ function renderMLTransparency(c, d) {
                 <div class="card border-0 p-3 h-100" style="background:rgba(255,255,255,.04);border-radius:12px">
                     <h6 style="color:#10b981">⚙️ XAI Levers</h6>
                     <div class="mb-3">${pills}</div>
-                    <p class="small text-muted">${d.statistical_note||''}</p>
+                    <p class="small text-muted">${d.statistical_note || ''}</p>
                     <button class="btn btn-sm btn-outline-warning" onclick="triggerMLRetrain()">🔁 Force Retrain</button>
                 </div>
             </div>
@@ -2495,12 +2651,12 @@ async function loadTelemetrySummary() {
     if (!c) return;
     try {
         const d = await apiFetch('/api/telemetry/summary');
-        const hc = d.model_health==='Excellent'?'#22c55e':d.model_health==='Good'?'#f59e0b':'#ef4444';
+        const hc = d.model_health === 'Excellent' ? '#22c55e' : d.model_health === 'Good' ? '#f59e0b' : '#ef4444';
         c.innerHTML = `<div class="row g-2 text-center">
-            ${[['Model Health',d.model_health,hc],['Precision',((d.precision||0)*100).toFixed(0)+'%','#6366f1'],
-               ['FP Rate',((d.fp_rate||0)*100).toFixed(1)+'%','#ef4444'],['24h Shadows',d.shadows_24h||0,'#f97316'],
-               ['Total Shadows',d.total_shadows||0,'#0ea5e9'],['Unapproved V.',d.vendors_unapproved||0,'#f59e0b']
-            ].map(([l,v,col])=>`
+            ${[['Model Health', d.model_health, hc], ['Precision', ((d.precision || 0) * 100).toFixed(0) + '%', '#6366f1'],
+            ['FP Rate', ((d.fp_rate || 0) * 100).toFixed(1) + '%', '#ef4444'], ['24h Shadows', d.shadows_24h || 0, '#f97316'],
+            ['Total Shadows', d.total_shadows || 0, '#0ea5e9'], ['Unapproved V.', d.vendors_unapproved || 0, '#f59e0b']
+            ].map(([l, v, col]) => `
                 <div class="col-4 col-md-2">
                     <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:.5rem .2rem">
                         <div style="color:${col};font-weight:700;font-size:.95rem">${v}</div>
@@ -2516,50 +2672,701 @@ async function loadShadowVelocity() {
     if (!c) return;
     try {
         const d = await apiFetch('/api/telemetry/shadow-velocity');
-        const maxH = Math.max(1, ...d.hourly.map(h=>h.count));
-        const hBars = d.hourly.map(h=>{
-            const pct = Math.round((h.count/maxH)*55)+4;
-            const hot = h.hour>=20||h.hour<=5;
+        const maxH = Math.max(1, ...d.hourly.map(h => h.count));
+        const hBars = d.hourly.map(h => {
+            const pct = Math.round((h.count / maxH) * 55) + 4;
+            const hot = h.hour >= 20 || h.hour <= 5;
             return `<div title="${h.label}: ${h.count}" style="display:inline-block;width:3.8%;margin:0 .1%;vertical-align:bottom">
-                <div style="background:${hot?'#ef4444':'#6366f1'};height:${pct}px;border-radius:2px 2px 0 0;opacity:.85"></div>
-                ${h.hour%6===0?`<div style="font-size:.5rem;color:#555;text-align:center">${String(h.hour).padStart(2,'0')}h</div>`:''}
+                <div style="background:${hot ? '#ef4444' : '#6366f1'};height:${pct}px;border-radius:2px 2px 0 0;opacity:.85"></div>
+                ${h.hour % 6 === 0 ? `<div style="font-size:.5rem;color:#555;text-align:center">${String(h.hour).padStart(2, '0')}h</div>` : ''}
             </div>`;
         }).join('');
-        const maxW = Math.max(1,...d.weekly.map(w=>w.count));
-        const wBars = d.weekly.map(w=>`
+        const maxW = Math.max(1, ...d.weekly.map(w => w.count));
+        const wBars = d.weekly.map(w => `
             <div class="text-center" style="flex:1">
-                <div style="background:#8b5cf6;height:${Math.round(w.count/maxW*55)+4}px;border-radius:4px 4px 0 0;margin:0 2px;opacity:.85"></div>
+                <div style="background:#8b5cf6;height:${Math.round(w.count / maxW * 55) + 4}px;border-radius:4px 4px 0 0;margin:0 2px;opacity:.85"></div>
                 <div class="text-muted" style="font-size:.65rem">${w.day}</div>
             </div>`).join('');
         c.innerHTML = `
             <div class="mb-3">
-                <div class="small text-muted mb-1">Hour-of-Day <span class="badge bg-danger ms-1">Peak ${String(d.peak_hour||0).padStart(2,'0')}:00</span></div>
+                <div class="small text-muted mb-1">Hour-of-Day <span class="badge bg-danger ms-1">Peak ${String(d.peak_hour || 0).padStart(2, '0')}:00</span></div>
                 <div style="height:65px">${hBars}</div>
             </div>
             <div>
-                <div class="small text-muted mb-1">Day-of-Week <span class="badge ms-1" style="background:#8b5cf6">${d.peak_weekday||''}</span></div>
+                <div class="small text-muted mb-1">Day-of-Week <span class="badge ms-1" style="background:#8b5cf6">${d.peak_weekday || ''}</span></div>
                 <div style="display:flex;align-items:flex-end;height:65px">${wBars}</div>
             </div>`;
     } catch (e) { console.warn('[TELEMETRY] velocity', e); }
 }
 
-// Tab-click auto-loaders
-document.addEventListener('DOMContentLoaded', () => {
-    document.addEventListener('click', e => {
-        const tab = e.target.closest('[data-section]');
-        if (!tab) return;
-        const s = tab.getAttribute('data-section');
-        if (s === 'vendor-rings')  setTimeout(loadVendorRings,    100);
-        if (s === 'ml-status')     setTimeout(loadMLTransparency, 100);
-        if (s === 'telemetry') {
-            setTimeout(loadTelemetrySummary, 100);
-            setTimeout(loadShadowVelocity,   200);
-        }
-    });
-});
+// Tab-click auto-loaders merged into initialization block
 
-window.loadVendorRings      = loadVendorRings;
-window.loadMLTransparency   = loadMLTransparency;
-window.triggerMLRetrain     = triggerMLRetrain;
+window.loadVendorRings = loadVendorRings;
+window.loadMLTransparency = loadMLTransparency;
+window.triggerMLRetrain = triggerMLRetrain;
 window.loadTelemetrySummary = loadTelemetrySummary;
-window.loadShadowVelocity   = loadShadowVelocity;
+window.loadShadowVelocity = loadShadowVelocity;
+
+// =============================================================
+// ENTERPRISE INTEGRATION — Phase 1-3 Feature Functions
+// =============================================================
+
+// -------------------------------------------------------------
+// STATE
+// -------------------------------------------------------------
+let _contractUploadVendorId = null;
+let _complianceCheckVendorId = null;
+
+// -------------------------------------------------------------
+// F1 — CSV / EXCEL IMPORT
+// -------------------------------------------------------------
+
+function triggerCSVImport() {
+    document.getElementById('csv-file-input').click();
+}
+
+async function importCSVData(inputEl) {
+    const file = inputEl.files[0];
+    if (!file) return;
+
+    // Reset so same file can be re-selected
+    inputEl.value = '';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    showToast(`Importing ${file.name}...`, 'info');
+
+    try {
+        const res  = await fetch('/api/import/csv', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!res.ok) {
+            const detail = data.detail || 'Unknown error';
+            showToast(`Import failed: ${detail}`, 'error');
+            return;
+        }
+
+        const msg = [
+            `✅ Imported ${data.imported} rows`,
+            data.shadows_detected > 0
+                ? `🚨 ${data.shadows_detected} shadows detected`
+                : `✓ No new shadows`,
+            data.errors && data.errors.length > 0
+                ? `⚠️ ${data.errors.length} rows had errors`
+                : null
+        ].filter(Boolean).join(' · ');
+
+        showToast(msg, data.shadows_detected > 0 ? 'warning' : 'success');
+
+        if (data.unmapped_columns && data.unmapped_columns.length > 0) {
+            console.warn('[Import] Unmapped columns:', data.unmapped_columns);
+        }
+
+        // Refresh all main panels after import
+        await Promise.all([
+            fetchAllData(),
+            fetchDeptRisk(),
+            fetchESGReport(),
+        ]);
+
+    } catch (err) {
+        showToast(`Import error: ${err.message}`, 'error');
+        console.error('[importCSVData]', err);
+    }
+}
+
+// -------------------------------------------------------------
+// F4 — PREDICTIVE DEPARTMENT RISK
+// -------------------------------------------------------------
+
+async function fetchDeptRisk() {
+    const listEl    = document.getElementById('dept-risk-list');
+    const loadingEl = document.getElementById('dept-risk-loading');
+    if (!listEl) return;
+
+    if (loadingEl) loadingEl.style.display = 'block';
+    listEl.innerHTML = '';
+
+    try {
+        const res  = await fetch('/api/analytics/dept-risk');
+        const data = await res.json();
+
+        if (loadingEl) loadingEl.style.display = 'none';
+
+        const depts = data.departments || [];
+        if (depts.length === 0) {
+            listEl.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No department data yet.</p>';
+            return;
+        }
+
+        listEl.innerHTML = depts.map(d => {
+            const pct   = Math.round((d.predicted_risk || 0) * 100);
+            const color = pct > 60 ? 'var(--danger)' :
+                          pct > 40 ? 'var(--warning)' : 'var(--success)';
+            const label = pct > 60 ? 'HIGH' : pct > 40 ? 'MEDIUM' : 'LOW';
+
+            return `
+            <div style="display:flex; align-items:center; gap:12px;
+                        padding:10px 0; border-bottom:1px solid var(--border-color);">
+                <div style="min-width:140px; font-size:13px; font-weight:600;">
+                    ${escapeHtml(d.department)}
+                </div>
+                <div style="flex:1; background:var(--bg-secondary);
+                            border-radius:4px; height:8px; overflow:hidden;">
+                    <div style="width:${pct}%; height:100%;
+                                background:${color}; border-radius:4px;
+                                transition:width 0.4s ease;"></div>
+                </div>
+                <div style="min-width:44px; font-size:13px;
+                            font-weight:700; color:${color};">${pct}%</div>
+                <div style="min-width:60px;">
+                    <span style="font-size:11px; font-weight:600; padding:2px 8px;
+                                 border-radius:20px; background:${color}20;
+                                 color:${color};">${label}</span>
+                </div>
+                <div style="min-width:160px; font-size:12px; color:var(--text-muted);">
+                    ${escapeHtml(d.recommendation || '')}
+                </div>
+            </div>`;
+        }).join('');
+
+    } catch (err) {
+        if (loadingEl) loadingEl.style.display = 'none';
+        listEl.innerHTML = '<p style="color:var(--danger);font-size:13px;">Failed to load department risk.</p>';
+        console.error('[fetchDeptRisk]', err);
+    }
+}
+
+// -------------------------------------------------------------
+// F5 — SUPPLIER NETWORK GRAPH
+// -------------------------------------------------------------
+
+async function fetchSupplierNetwork() {
+    const listEl = document.getElementById('supplier-network-list');
+    if (!listEl) return;
+
+    listEl.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Loading...</p>';
+
+    try {
+        const res  = await fetch('/api/supplier-network');
+        const data = await res.json();
+
+        const vendors = data.vendors || [];
+        if (vendors.length === 0) {
+            listEl.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No supplier data yet.</p>';
+            return;
+        }
+
+        // Show top 10 by disruption score
+        const top = vendors.slice(0, 10);
+
+        listEl.innerHTML = `
+        <table class="data-table" style="width:100%;">
+            <thead>
+                <tr>
+                    <th>Vendor</th>
+                    <th>Tier</th>
+                    <th>Trust Score</th>
+                    <th>Dependents</th>
+                    <th>Alternatives</th>
+                    <th>Disruption Risk</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${top.map(v => {
+                    const score = Math.round((v.disruption_score || 0) * 100);
+                    const color = score > 60 ? 'var(--danger)' :
+                                  score > 30 ? 'var(--warning)' : 'var(--success)';
+                    return `
+                    <tr>
+                        <td style="font-weight:600;">${escapeHtml(v.name)}</td>
+                        <td>
+                            <span style="font-size:11px; padding:2px 8px; border-radius:20px;
+                                         background:var(--bg-secondary);">
+                                Tier ${v.tier || 1}
+                            </span>
+                        </td>
+                        <td>
+                            <span style="font-weight:600;">
+                                ${v.trust_score != null ? Math.round(v.trust_score) : '—'}
+                            </span>
+                        </td>
+                        <td>${(v.dependents || []).length}</td>
+                        <td>${(v.alternatives || []).length}</td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="flex:1; background:var(--bg-secondary);
+                                            border-radius:4px; height:6px; overflow:hidden;
+                                            min-width:60px;">
+                                    <div style="width:${score}%; height:100%;
+                                                background:${color}; border-radius:4px;"></div>
+                                </div>
+                                <span style="font-size:12px; font-weight:700;
+                                             color:${color}; min-width:36px;">${score}%</span>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('')}
+            </tbody>
+        </table>
+        <p style="font-size:12px; color:var(--text-muted); margin-top:8px;">
+            Showing top ${top.length} of ${vendors.length} vendors by disruption risk.
+        </p>`;
+
+    } catch (err) {
+        listEl.innerHTML = '<p style="color:var(--danger);font-size:13px;">Failed to load supplier network.</p>';
+        console.error('[fetchSupplierNetwork]', err);
+    }
+}
+
+// -------------------------------------------------------------
+// F6 — CONTRACT UPLOAD
+// -------------------------------------------------------------
+
+function uploadContract(vendorId) {
+    _contractUploadVendorId = vendorId;
+    document.getElementById('contract-text-input').value = '';
+    const modal = document.getElementById('contract-modal');
+    modal.style.display = 'flex';
+}
+
+function closeContractModal() {
+    document.getElementById('contract-modal').style.display = 'none';
+    _contractUploadVendorId = null;
+}
+
+async function submitContract() {
+    const text = document.getElementById('contract-text-input').value.trim();
+    if (!text) {
+        showToast('Please paste contract text before uploading.', 'warning');
+        return;
+    }
+    if (!_contractUploadVendorId) {
+        showToast('No vendor selected.', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/vendors/${_contractUploadVendorId}/upload-contract`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ contract_text: text }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            showToast(`Upload failed: ${data.detail || 'Unknown error'}`, 'error');
+            return;
+        }
+
+        showToast('✅ Contract uploaded. AI compliance checks now active for this vendor.', 'success');
+        closeContractModal();
+
+    } catch (err) {
+        showToast(`Upload error: ${err.message}`, 'error');
+        console.error('[submitContract]', err);
+    }
+}
+
+// -------------------------------------------------------------
+// F6 — CONTRACT COMPLIANCE CHECK
+// -------------------------------------------------------------
+
+async function checkCompliance(txnId, vendorId) {
+    _complianceCheckVendorId = vendorId;
+
+    const resultEl = document.getElementById('compliance-result-body');
+    const modal    = document.getElementById('compliance-modal');
+    if (!resultEl || !modal) return;
+
+    resultEl.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Checking compliance...</p>';
+    modal.style.display = 'flex';
+
+    try {
+        const res  = await fetch(`/api/vendors/${vendorId}/check-compliance`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ txn_id: txnId }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            resultEl.innerHTML = `<p style="color:var(--danger);">Error: ${data.detail || 'Unknown'}</p>`;
+            return;
+        }
+
+        const statusColor = data.compliant ? 'var(--success)' : 'var(--danger)';
+        const statusText  = data.compliant  ? '✅ Compliant' : '❌ Non-Compliant';
+        const severityMap = { low: 'var(--success)', medium: 'var(--warning)', high: 'var(--danger)' };
+        const sevColor    = severityMap[data.severity] || 'var(--text-muted)';
+
+        resultEl.innerHTML = `
+        <div style="margin-bottom:16px;">
+            <span style="font-size:18px; font-weight:700; color:${statusColor};">
+                ${statusText}
+            </span>
+            ${data.severity ? `
+            <span style="margin-left:12px; font-size:12px; padding:2px 10px;
+                         border-radius:20px; font-weight:600;
+                         background:${sevColor}20; color:${sevColor};">
+                ${data.severity.toUpperCase()} SEVERITY
+            </span>` : ''}
+        </div>
+
+        ${data.violations && data.violations.length > 0 ? `
+        <div style="margin-bottom:12px;">
+            <div style="font-size:13px; font-weight:600; margin-bottom:8px;">
+                Violations found:
+            </div>
+            <ul style="margin:0; padding-left:16px;">
+                ${data.violations.map(v =>
+                    `<li style="font-size:13px; margin-bottom:4px;
+                                color:var(--danger);">${escapeHtml(v)}</li>`
+                ).join('')}
+            </ul>
+        </div>` : `
+        <p style="font-size:13px; color:var(--text-muted);">
+            No violations detected against the uploaded contract terms.
+        </p>`}
+
+        ${data.note ? `<p style="font-size:12px; color:var(--text-muted);">
+            Note: ${escapeHtml(data.note)}
+        </p>` : ''}
+        ${data.error ? `<p style="font-size:12px; color:var(--warning);">
+            Warning: ${escapeHtml(data.error)}
+        </p>` : ''}
+
+        <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+            <button class="btn btn-outline" onclick="closeComplianceModal()">Close</button>
+        </div>`;
+
+    } catch (err) {
+        resultEl.innerHTML = `<p style="color:var(--danger);">Error: ${err.message}</p>`;
+        console.error('[checkCompliance]', err);
+    }
+}
+
+function closeComplianceModal() {
+    document.getElementById('compliance-modal').style.display = 'none';
+}
+
+function viewVendorCompliance(vendorId) {
+    // Called from vendor table — prompts for a txn ID to check against
+    const txnId = prompt("Enter Transaction ID to check against this vendor's contract:");
+    if (txnId && !isNaN(parseInt(txnId))) {
+        checkCompliance(parseInt(txnId), vendorId);
+    } else if (txnId !== null) {
+        showToast('Please enter a valid numeric Transaction ID.', 'warning');
+    }
+}
+
+// -------------------------------------------------------------
+// F7 — IoT INVENTORY
+// -------------------------------------------------------------
+
+async function fetchIoTInventory() {
+    const tbody = document.getElementById('inventory-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Loading...</td></tr>';
+
+    try {
+        const res  = await fetch('/api/inventory/items');
+        const data = await res.json();
+
+        const items = data.items || data || [];
+        if (items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No inventory items found.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = items.map(item => {
+            const pct      = item.reorder_point > 0
+                ? Math.round((item.quantity / item.reorder_point) * 100) : 100;
+            const isLow    = item.quantity <= item.reorder_point;
+            const statusColor = isLow ? 'var(--danger)' : 'var(--success)';
+            const statusText  = isLow ? '⚠️ Low stock' : '✓ OK';
+            const synced   = item.last_synced
+                ? new Date(item.last_synced).toLocaleString() : 'Never';
+
+            return `
+            <tr>
+                <td style="font-weight:600;">${escapeHtml(item.name || item.item_id)}</td>
+                <td>${escapeHtml(item.location || '—')}</td>
+                <td>
+                    <span style="font-weight:700; color:${statusColor};">
+                        ${item.quantity}
+                    </span>
+                    <span style="font-size:11px; color:var(--text-muted);">
+                        ${escapeHtml(item.unit || 'units')}
+                    </span>
+                </td>
+                <td style="font-size:13px;">${item.reorder_point}</td>
+                <td>
+                    <span style="font-size:12px; font-weight:600;
+                                 color:${statusColor};">${statusText}</span>
+                </td>
+                <td style="font-size:12px; color:var(--text-muted);">${synced}</td>
+            </tr>`;
+        }).join('');
+
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--danger);">Failed to load inventory.</td></tr>';
+        console.error('[fetchIoTInventory]', err);
+    }
+}
+
+function openIoTSyncModal() {
+    document.getElementById('iot-item-id').value  = '';
+    document.getElementById('iot-qty').value      = '';
+    document.getElementById('iot-location').value = '';
+    document.getElementById('iot-modal').style.display = 'flex';
+}
+
+function closeIoTModal() {
+    document.getElementById('iot-modal').style.display = 'none';
+}
+
+async function submitIoTSync() {
+    const itemId   = document.getElementById('iot-item-id').value.trim();
+    const qty      = parseFloat(document.getElementById('iot-qty').value);
+    const location = document.getElementById('iot-location').value.trim();
+
+    if (!itemId || isNaN(qty)) {
+        showToast('Item ID and quantity are required.', 'warning');
+        return;
+    }
+
+    try {
+        const res  = await fetch('/api/inventory/sync', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                item_id:     itemId,
+                current_qty: qty,
+                location:    location || undefined,
+            }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            showToast(`Sync failed: ${data.detail || 'Unknown'}`, 'error');
+            return;
+        }
+
+        const msg = data.po_draft_raised
+            ? `📡 Synced. ⚠️ Stock below reorder point — PO draft auto-raised!`
+            : `📡 Synced successfully.`;
+
+        showToast(msg, data.po_draft_raised ? 'warning' : 'success');
+        closeIoTModal();
+        await Promise.all([fetchIoTInventory(), fetchAutoPODrafts()]);
+
+    } catch (err) {
+        showToast(`Sync error: ${err.message}`, 'error');
+        console.error('[submitIoTSync]', err);
+    }
+}
+
+// -------------------------------------------------------------
+// F7 — AUTO-DRAFTED POs
+// -------------------------------------------------------------
+
+async function fetchAutoPODrafts() {
+    const tbody = document.getElementById('po-drafts-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Loading...</td></tr>';
+
+    try {
+        const res  = await fetch('/api/inventory/po-drafts');
+        const data = await res.json();
+
+        const drafts = data.drafts || data || [];
+        if (drafts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">No auto-drafted POs.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = drafts.map(po => {
+            const created = po.created_at
+                ? new Date(po.created_at).toLocaleDateString() : '—';
+            const statusColor = po.status === 'Draft'
+                ? 'var(--warning)' : 'var(--success)';
+
+            return `
+            <tr>
+                <td style="font-weight:600;">${escapeHtml(po.item_name || '—')}</td>
+                <td>${po.quantity}</td>
+                <td>
+                    <span style="font-size:12px; font-weight:600;
+                                 color:${statusColor};">${escapeHtml(po.status)}</span>
+                </td>
+                <td style="font-size:12px; color:var(--text-muted);">${created}</td>
+                <td>
+                    ${po.auto_raised
+                        ? '<span style="font-size:11px; padding:2px 8px; border-radius:20px; background:var(--warning)20; color:var(--warning);">Auto</span>'
+                        : '<span style="font-size:11px; color:var(--text-muted);">Manual</span>'}
+                </td>
+            </tr>`;
+        }).join('');
+
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--danger);">Failed to load PO drafts.</td></tr>';
+        console.error('[fetchAutoPODrafts]', err);
+    }
+}
+
+// -------------------------------------------------------------
+// F11 — ESG REPORT
+// -------------------------------------------------------------
+
+async function fetchESGReport() {
+    const totalEl    = document.getElementById('esg-total-carbon');
+    const certEl     = document.getElementById('esg-certified-count');
+    const avgEl      = document.getElementById('esg-avg-score');
+    const deptListEl = document.getElementById('esg-dept-list');
+    const vendorEl   = document.getElementById('esg-vendor-list');
+    if (!totalEl) return;
+
+    try {
+        const res  = await fetch('/api/analytics/esg-report');
+        const data = await res.json();
+
+        // Stat cards
+        if (totalEl) totalEl.textContent =
+            (data.total_carbon_kg_co2 || 0).toLocaleString() + ' kg';
+
+        const vendors = data.vendor_esg_scores || [];
+        if (certEl) certEl.textContent =
+            vendors.filter(v => v.certified).length;
+        if (avgEl) avgEl.textContent = vendors.length
+            ? Math.round(vendors.reduce((s, v) => s + (v.esg_score || 0), 0) / vendors.length)
+            : '—';
+
+        // Department carbon bar list
+        if (deptListEl) {
+            const deptCarbon = data.dept_carbon_kg_co2 || {};
+            const maxCarbon  = Math.max(...Object.values(deptCarbon), 1);
+            deptListEl.innerHTML = Object.entries(deptCarbon)
+                .slice(0, 6)
+                .map(([dept, co2]) => {
+                    const pct   = Math.round((co2 / maxCarbon) * 100);
+                    const color = pct > 70 ? 'var(--danger)' :
+                                  pct > 40 ? 'var(--warning)' : 'var(--success)';
+                    return `
+                    <div style="display:flex; align-items:center; gap:10px;
+                                padding:6px 0; border-bottom:1px solid var(--border-color);">
+                        <div style="min-width:130px; font-size:13px;">
+                            ${escapeHtml(dept)}
+                        </div>
+                        <div style="flex:1; background:var(--bg-secondary);
+                                    border-radius:4px; height:6px; overflow:hidden;">
+                            <div style="width:${pct}%; height:100%;
+                                        background:${color}; border-radius:4px;"></div>
+                        </div>
+                        <div style="min-width:80px; font-size:12px;
+                                    text-align:right; color:var(--text-muted);">
+                            ${co2.toLocaleString()} kg
+                        </div>
+                    </div>`;
+                }).join('');
+        }
+
+        // Vendor ESG table
+        if (vendorEl) {
+            const bottom5 = [...vendors]
+                .sort((a, b) => a.esg_score - b.esg_score)
+                .slice(0, 5);
+
+            vendorEl.innerHTML = bottom5.length === 0
+                ? '<p style="font-size:13px;color:var(--text-muted);">No vendor ESG data.</p>'
+                : `
+                <table class="data-table" style="width:100%;margin-top:8px;">
+                    <thead>
+                        <tr>
+                            <th>Vendor</th>
+                            <th>ESG Score</th>
+                            <th>Carbon Rating</th>
+                            <th>Certified</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${bottom5.map(v => {
+                            const scoreColor = v.esg_score < 30 ? 'var(--danger)' :
+                                               v.esg_score < 60 ? 'var(--warning)' : 'var(--success)';
+                            return `
+                            <tr>
+                                <td style="font-weight:600;">${escapeHtml(v.name)}</td>
+                                <td>
+                                    <span style="font-weight:700;color:${scoreColor};">
+                                        ${Math.round(v.esg_score)}
+                                    </span>
+                                    <span style="font-size:11px;color:var(--text-muted);">/100</span>
+                                </td>
+                                <td style="font-weight:600;">${escapeHtml(v.carbon_rating || '—')}</td>
+                                <td>${v.certified
+                                    ? '<span style="color:var(--success);">✓ Yes</span>'
+                                    : '<span style="color:var(--text-muted);">No</span>'}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+                <p style="font-size:12px;color:var(--text-muted);margin-top:6px;">
+                    Showing 5 lowest-scoring vendors.
+                </p>`;
+        }
+
+    } catch (err) {
+        if (totalEl) totalEl.textContent = 'Error';
+        console.error('[fetchESGReport]', err);
+    }
+}
+
+// -------------------------------------------------------------
+// F12 — SOC 2 DATA PURGE
+// -------------------------------------------------------------
+
+async function triggerDataPurge() {
+    const confirmed = confirm(
+        '⚠️ SOC 2 Data Purgenn' +
+        'This will permanently delete all resolved shadow purchases older than 7 years.nn' +
+        'This action cannot be undone. Continue?'
+    );
+    if (!confirmed) return;
+
+    try {
+        const res  = await fetch('/api/admin/purge-old-records', { method: 'POST' });
+        const data = await res.json();
+
+        if (!res.ok) {
+            showToast(`Purge failed: ${data.detail || 'Unknown error'}`, 'error');
+            return;
+        }
+
+        showToast(
+            `🗑️ Purge complete — ${data.deleted} record${data.deleted !== 1 ? 's' : ''} deleted.`,
+            data.deleted > 0 ? 'warning' : 'success'
+        );
+
+    } catch (err) {
+        showToast(`Purge error: ${err.message}`, 'error');
+        console.error('[triggerDataPurge]', err);
+    }
+}
+
+// -------------------------------------------------------------
+// UTILITY — escapeHtml (add only if not already in app.js)
+// -------------------------------------------------------------
+
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+

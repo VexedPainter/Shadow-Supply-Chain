@@ -16,10 +16,9 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 # ─── API Configuration ─────────────────────────────
-# Keys are injected as environment variables by Cloud Run (via Secret Manager).
+# Keys are read lazily (inside _init_*) so that load_dotenv() in app.py
+# has already populated os.environ before these are evaluated.
 # Locally: copy .env.example → .env and fill in your keys.
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-COHERE_API_KEY = os.environ.get("COHERE_API_KEY")
 
 # ─── Initialize Clients ────────────────────────────
 groq_client = None
@@ -28,9 +27,13 @@ cohere_client = None
 def _init_groq():
     global groq_client
     if groq_client is None:
+        api_key = os.environ.get("GROQ_API_KEY")
+        if not api_key:
+            logger.warning("[AI Copilot] GROQ_API_KEY is not set. Check your .env file.")
+            return None
         try:
             from groq import Groq
-            groq_client = Groq(api_key=GROQ_API_KEY)
+            groq_client = Groq(api_key=api_key)
             logger.info("[AI Copilot] Groq client initialized successfully.")
         except Exception as e:
             logger.warning(f"[AI Copilot] Groq init failed: {e}")
@@ -39,9 +42,13 @@ def _init_groq():
 def _init_cohere():
     global cohere_client
     if cohere_client is None:
+        api_key = os.environ.get("COHERE_API_KEY")
+        if not api_key:
+            logger.warning("[AI Copilot] COHERE_API_KEY is not set. Check your .env file.")
+            return None
         try:
             import cohere
-            cohere_client = cohere.ClientV2(api_key=COHERE_API_KEY)
+            cohere_client = cohere.ClientV2(api_key=api_key)
             logger.info("[AI Copilot] Cohere v2 client initialized successfully.")
         except Exception as e:
             logger.warning(f"[AI Copilot] Cohere init failed: {e}")
@@ -56,18 +63,25 @@ Your role:
 - Provide actionable recommendations for supply chain managers
 - Explain AI risk scores, vendor trust metrics, and anomaly detections
 - Help with compliance analysis and audit reasoning
-- Answer questions about procurement best practices
+- Answer questions about procurement best practices and explain system features
 
-Context: You operate within an enterprise system that monitors procurement transactions,
-detects shadow purchases (unauthorized/untracked spending), and uses Isolation Forest ML
-models for anomaly detection. The system tracks vendors, risk scores (0-1 scale),
-inventory levels, and compliance audit trails.
+System Capabilities (New Implementations you must know about):
+- **Predictive Department Risk**: AI forecasting of shadow spend likelihood per department based on historical data.
+- **Priority Queue**: A scoring system that prioritizes alerts based on Risk Score (35%), Financial Loss (25%), Frequency (20%), and Uncertainty (20%). Also identifies Root Causes.
+- **IoT Inventory**: Real-time stock tracking with remote sync to physical warehouse IoT devices.
+- **Auto-Drafted POs**: Automatically converts resolved shadow purchases into formalized purchase order drafts.
+- **ESG & Carbon Tracking**: Tracks carbon emissions, vendor ESG compliance, and top emitting departments.
+- **Supplier Network Graph**: Identifies supply chain disruption risks based on vendor dependencies.
+- **SOC 2 Data Purging**: Secure archival and scrubbing of non-compliant transaction logs.
+- **Preventive Intelligence**: Emergency part search that checks inventory availability and confidence before triggering an external purchase.
+
+Context: You operate within an enterprise system that monitors procurement transactions, detects shadow purchases, and uses ML models for anomaly detection.
 
 Guidelines:
 - Be concise but thorough
 - Use data-driven reasoning
 - Reference specific metrics when available
-- Suggest specific actions (convert to PO, flag vendor, escalate audit)
+- Suggest specific actions
 - Format responses with clear structure using bullet points and headers
 """
 
@@ -314,45 +328,62 @@ Provide actionable recommendations for the supply chain team."""
 # ═══════════════════════════════════════════════
 
 def check_ai_health() -> dict:
-    """Check connectivity status of both AI providers."""
+    """Check connectivity status of both AI providers with actionable diagnostics."""
     health = {
         "groq": {"status": "unknown", "model": "llama-3.3-70b-versatile"},
         "cohere": {"status": "unknown", "model": "command-a-03-2025"},
     }
 
     # Test Groq
-    try:
-        client = _init_groq()
-        if client:
-            result = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": "Reply with OK"}],
-                max_tokens=5,
-            )
-            health["groq"]["status"] = "connected"
-            health["groq"]["response"] = result.choices[0].message.content
-        else:
-            health["groq"]["status"] = "not_configured"
-    except Exception as e:
-        health["groq"]["status"] = "error"
-        health["groq"]["error"] = str(e)
+    groq_key = os.environ.get("GROQ_API_KEY")
+    if not groq_key:
+        health["groq"]["status"] = "not_configured"
+        health["groq"]["error"] = "GROQ_API_KEY is missing from environment. Add it to your .env file and restart the server."
+    else:
+        # Reset cached client so a fresh key is always picked up on health check
+        global groq_client
+        groq_client = None
+        try:
+            client = _init_groq()
+            if client:
+                result = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": "Reply with OK"}],
+                    max_tokens=5,
+                )
+                health["groq"]["status"] = "connected"
+                health["groq"]["response"] = result.choices[0].message.content
+            else:
+                health["groq"]["status"] = "error"
+                health["groq"]["error"] = "Client failed to initialize despite key being present."
+        except Exception as e:
+            health["groq"]["status"] = "error"
+            health["groq"]["error"] = str(e)
 
     # Test Cohere
-    try:
-        client = _init_cohere()
-        if client:
-            result = client.chat(
-                model="command-a-03-2025",
-                messages=[{"role": "user", "content": "Reply with OK"}],
-                max_tokens=5,
-            )
-            health["cohere"]["status"] = "connected"
-            health["cohere"]["response"] = result.message.content[0].text
-        else:
-            health["cohere"]["status"] = "not_configured"
-    except Exception as e:
-        health["cohere"]["status"] = "error"
-        health["cohere"]["error"] = str(e)
+    cohere_key = os.environ.get("COHERE_API_KEY")
+    if not cohere_key:
+        health["cohere"]["status"] = "not_configured"
+        health["cohere"]["error"] = "COHERE_API_KEY is missing from environment. Add it to your .env file and restart the server."
+    else:
+        global cohere_client
+        cohere_client = None
+        try:
+            client = _init_cohere()
+            if client:
+                result = client.chat(
+                    model="command-a-03-2025",
+                    messages=[{"role": "user", "content": "Reply with OK"}],
+                    max_tokens=5,
+                )
+                health["cohere"]["status"] = "connected"
+                health["cohere"]["response"] = result.message.content[0].text
+            else:
+                health["cohere"]["status"] = "error"
+                health["cohere"]["error"] = "Client failed to initialize despite key being present."
+        except Exception as e:
+            health["cohere"]["status"] = "error"
+            health["cohere"]["error"] = str(e)
 
     return health
 
@@ -364,10 +395,12 @@ def _format_context(context: dict) -> str:
     if "stats" in context:
         s = context["stats"]
         parts.append(f"Total Transactions: {s.get('total_transactions', 'N/A')}")
-        parts.append(f"Shadow Purchases: {s.get('total_shadows', 'N/A')}")
+        parts.append(f"Shadow Purchases: {s.get('total_shadows', 'N/A')} (Pending: {s.get('pending_shadows', 0)})")
         parts.append(f"Financial Exposure: ${s.get('total_exposure', 0):,.2f}")
         parts.append(f"Risk Level: {s.get('risk_level', 'N/A')}")
-        parts.append(f"Pending Actions: {s.get('pending_shadows', 0)}")
+        parts.append(f"Total Procurement Orders: {s.get('total_procurement', 0)}")
+        parts.append(f"Total Inventory Items: {s.get('total_inventory_items', 0)}")
+        parts.append(f"Detection Quality/Confidence: {s.get('detection_quality', 0)}")
     if "vendor_count" in context:
         parts.append(f"Active Vendors: {context['vendor_count']}")
     if "high_risk_vendors" in context:
