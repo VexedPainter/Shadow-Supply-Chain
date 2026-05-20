@@ -485,15 +485,31 @@ tr.new-row td { animation: highlightRow 1.5s ease-out; }
 }
 .toggle-item {
   padding: 6px 14px; font-size: 11px; font-weight: 600; color: var(--text-subtle);
-  cursor: pointer; border-radius: 999px; transition: all 0.25s ease;
+  cursor: pointer; border-radius: 999px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap; user-select: none;
+  position: relative;
+  z-index: 1;
 }
-.toggle-item:hover { color: var(--text-base); }
+.toggle-item:hover { 
+  color: var(--text-heading); 
+  background: rgba(128, 128, 128, 0.1);
+}
 .toggle-item.active {
-  background: var(--brand-gradient); color: #fff;
-  box-shadow: var(--shadow-glow-navy);
+  background: var(--brand-primary); 
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+[data-theme="dark"] .toggle-item.active {
+  background: #1e293b;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.4);
 }
 .toggle-item.active.prod { background: linear-gradient(135deg, var(--brand-secondary), #008a8a); }
+[data-theme="dark"] .toggle-item.active.prod {
+  background: #004d4d;
+  box-shadow: 0 0 12px rgba(0, 138, 138, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 138, 138, 0.5);
+}
 
 /* ─── Chart Grid ──────────────────────────────── */
 .charts-grid-compact {
