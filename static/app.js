@@ -3382,3 +3382,62 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+// ==============================================
+//  SETTINGS & THEME
+// ==============================================
+
+function openSettingsModal() {
+    const modal = document.getElementById('settings-modal');
+    if(modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+function closeSettingsModal() {
+    const modal = document.getElementById('settings-modal');
+    if(modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function toggleTheme() {
+    const toggle = document.getElementById('theme-toggle');
+    if (!toggle) return;
+    
+    if (toggle.checked) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('shadow_theme', 'dark');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('shadow_theme', 'light');
+    }
+}
+
+function fullSystemRefresh() {
+    if(typeof showToast === 'function') {
+        showToast('Executing Hard System Refresh...', 'info');
+    }
+    fetchAllData();
+    closeSettingsModal();
+    setTimeout(() => {
+        if(typeof showToast === 'function') {
+            showToast('System synced and refreshed.', 'success');
+        }
+    }, 1500);
+}
+
+// Immediately check for saved theme on load to prevent flash of wrong theme
+(function initTheme() {
+    const savedTheme = localStorage.getItem('shadow_theme');
+    if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+    
+    // Set the toggle state once DOM is fully parsed
+    window.addEventListener('DOMContentLoaded', () => {
+        const toggle = document.getElementById('theme-toggle');
+        if (toggle && savedTheme === 'dark') {
+            toggle.checked = true;
+        }
+    });
+})();

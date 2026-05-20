@@ -1193,3 +1193,159 @@ canvas { width: 100% !important; height: 100% !important; }
     padding-bottom: 80px; /* Space for nav bar */
   }
 }
+
+/* ─── Global Transitions ──────────────────────── */
+body, .sidebar, .main, .panel, .card, .stat-card, .header, .panel-header, .insight-row, .rec-card, .dataset-toggle, .toggle-item {
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── OLED Pitch Black Dark Mode ──────────────── */
+[data-theme="dark"] {
+  --bg-app: #000000;
+  --bg-sidebar: #020202;
+  --bg-sidebar-hover: #0a0a0a;
+  --bg-panel: #050505;
+  --bg-panel-solid: #050505;
+  --bg-panel-hover: #0a0a0a;
+  --bg-card: #050505;
+  --bg-card-hover: #0a0a0a;
+  --bg-input: #0a0a0a;
+  --bg-region: #0a0a0a;
+  --bg-surface: #0f0f0f;
+
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-medium: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --border-focus: #3b82f6;
+
+  --text-base: #e2e4e9;
+  --text-muted: #8b92a5;
+  --text-subtle: #616876;
+  --text-heading: #ffffff;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.8);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.9);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.95);
+  
+  --brand-gradient-vertical: linear-gradient(180deg, #000000 0%, #050505 100%);
+  --brand-gradient: linear-gradient(135deg, #020202 0%, #0a0a0a 100%);
+}
+
+/* ─── Animated Theme Toggle ───────────────────── */
+.theme-switch-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-region);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-medium);
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
+.theme-switch-wrapper:hover {
+  border-color: var(--border-strong);
+}
+.theme-switch-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.theme-switch {
+  position: relative;
+  display: inline-block;
+  width: 56px;
+  height: 28px;
+}
+.theme-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.theme-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #cbd5e1;
+  transition: .4s;
+  border-radius: 34px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+.theme-slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  z-index: 2;
+}
+
+/* Icons inside toggle */
+.theme-slider .icon-sun, .theme-slider .icon-moon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  transition: 0.4s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.theme-slider .icon-sun {
+  left: 6px;
+  color: #f59e0b;
+  opacity: 1;
+}
+.theme-slider .icon-moon {
+  right: 6px;
+  color: #fbbf24;
+  opacity: 0;
+}
+
+input:checked + .theme-slider {
+  background-color: #00234b;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 0 15px rgba(0,35,75,0.4);
+}
+input:checked + .theme-slider:before {
+  transform: translateX(28px);
+  background-color: #0f172a;
+}
+input:checked + .theme-slider .icon-sun {
+  opacity: 0;
+  transform: translateY(-50%) translateX(-10px);
+}
+input:checked + .theme-slider .icon-moon {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* General Settings Modal Styles */
+.settings-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--bg-region);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+}
+.settings-text h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.settings-text p {
+  font-size: 11px;
+  color: var(--text-subtle);
+}

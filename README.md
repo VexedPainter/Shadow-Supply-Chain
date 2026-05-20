@@ -151,6 +151,18 @@ python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 <p>JWT session auth with RBAC (admin/analyst/auditor). Fernet field-level encryption. Complete audit trail. SOC 2 readiness checklist included.</p>
 </td>
 </tr>
+<tr>
+<td align="center" width="33%">
+<h3>🌙 OLED Dark Mode</h3>
+<p>A true pitch-black OLED dark mode with fluid CSS transitions, glowing animated toggles, and memory persistence. Perfect for late-night threat hunting.</p>
+</td>
+<td align="center" width="33%">
+<h3>⚙️ System Settings</h3>
+<p>Quick-access settings modal for instant UI customization, data density shifts, and hard-refresh data syncing.</p>
+</td>
+<td align="center" width="33%">
+</td>
+</tr>
 </table>
 
 ---
