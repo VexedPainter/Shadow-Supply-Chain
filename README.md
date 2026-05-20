@@ -112,7 +112,7 @@ python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 <tr>
 <td align="center" width="33%">
 <h3>🔍 ML Detection Engine</h3>
-<p>Isolation Forest anomaly detection with 10+ engineered features. Auto-retrains every 10 human corrections. 85%+ baseline accuracy — zero labeled data needed.</p>
+<p>Isolation Forest anomaly detection (v3) with 10 engineered features. See <a href="MODEL_CARD.md">MODEL_CARD.md</a>. Auto-retrains securely without score drift. 85%+ baseline accuracy — zero labeled data needed.</p>
 </td>
 <td align="center" width="33%">
 <h3>🤖 Dual-LLM AI Copilot</h3>
@@ -126,7 +126,7 @@ python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 <tr>
 <td align="center" width="33%">
 <h3>🕸️ Vendor Collusion Detection</h3>
-<p>Graph analysis detects split-PO fraud rings — multiple shell vendors, same employee, amounts under approval thresholds. Automatic escalation.</p>
+<p>Graph analysis detects split-PO fraud rings — multiple shell vendors, same employee, amounts under approval thresholds. Strict thresholds prevent false positives. Automatic escalation.</p>
 </td>
 <td align="center" width="33%">
 <h3>🛡️ Preventive Intelligence</h3>
@@ -229,10 +229,10 @@ Raw Transaction → Feature Extraction → PO Matching → If Unmatched:
 
 | Parameter | Value |
 |-----------|-------|
-| **Algorithm** | Isolation Forest (Unsupervised) |
+| **Algorithm** | Isolation Forest v3 (Unsupervised) |
 | **Training Data Required** | Zero — learns normal patterns automatically |
 | **Risk Thresholds** | > 0.6 High · 0.35–0.6 Medium · < 0.35 Low |
-| **Auto-Retrain Trigger** | Every 10 human feedback corrections |
+| **Recalibration Guard** | Idempotent feedback loop prevents unbounded score drift |
 | **Baseline Accuracy** | 85%+ (improves with feedback loop) |
 
 ---
@@ -413,6 +413,7 @@ Shadow-Supply-Chain/
 ├── 📋 Documentation
 │   ├── README.md                   # This file
 │   ├── DEMO.md                     # Exhibition demo cheat sheet
+│   ├── MODEL_CARD.md               # Detailed ML architecture documentation
 │   ├── SECURITY.md                 # SOC 2 audit readiness & security guide
 │   └── FIXES_APPLIED.md            # Changelog of patches applied
 │
@@ -496,6 +497,8 @@ ShadowSync ships with a comprehensive [Security Guide](SECURITY.md) including:
 | `COHERE_API_KEY` | ✅ | Cohere API key |
 | `DATABASE_URL` | — | PostgreSQL URL (defaults to SQLite) |
 | `FIELD_ENCRYPTION_KEY` | 🔶 | Fernet key for field encryption |
+| `ALLOWED_ORIGINS` | 🔶 | CORS whitelist (comma separated) |
+| `IOT_API_KEY` | 🔶 | Pre-shared key for IoT scanner devices |
 | `SLACK_WEBHOOK_URL` | — | Slack alerts webhook |
 | `ALERT_EMAIL_USER` / `_PASS` / `_TO` | — | Email alert configuration |
 | `FIREBASE_CREDENTIALS_PATH` | — | FCM push notification credentials |
@@ -584,7 +587,7 @@ Built by the **ShadowSync Engineering Team** as an enterprise supply chain intel
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:161b22,100:1f6feb&height=120&section=footer" width="100%"/>
 
-**ShadowSync v4.0 — Exhibition Final**
+**ShadowSync v7.0 — Exhibition Final**
 
 *Protecting procurement integrity through AI-powered intelligence*
 
