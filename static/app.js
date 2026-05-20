@@ -677,7 +677,7 @@ function renderShadowTable(shadows) {
                 ${isPending ? `
                     <div style="display:flex; gap:4px; align-items:center;">
                         <button class="btn btn-xs btn-primary" onclick="resolveShadow(${s.id})" title="Approve & Covert">Approve</button>
-                        <button class="btn btn-xs" style="background:var(--bg-card);border:1px solid rgba(255,255,255,0.1);" onclick="openDecisionPanel(${s.id})" title="Review details">Review</button>
+                        <button class="btn btn-xs btn-ghost" onclick="openDecisionPanel(${s.id})" title="Review details">Review</button>
                         <button class="btn btn-xs btn-ghost" style="color:var(--text-muted); padding:0 6px;" onclick="dismissShadow(${s.id})" title="Dismiss Record">Reject</button>
                     </div>
                 ` : `<span style="font-size:10px;color:var(--text-subtle)">${s.resolved_po_id || '-'}</span>`}
@@ -865,7 +865,7 @@ function renderPriorityTable(items) {
             <td class="action-buttons">
                 <div style="display:flex; gap:4px; align-items:center;">
                     <button class="btn btn-xs btn-primary" onclick="takeAction(${item.id}, 'convert_to_po')" title="Convert to Procurement Order">Approve</button>
-                    <button class="btn btn-xs" style="background:var(--bg-card);border:1px solid rgba(255,255,255,0.1);" onclick="takeAction(${item.id}, 'escalate_audit')" title="Escalate for Audit">Escalate</button>
+                    <button class="btn btn-xs btn-ghost" onclick="takeAction(${item.id}, 'escalate_audit')" title="Escalate for Audit">Escalate</button>
                     <button class="btn btn-xs btn-ghost" style="color:var(--text-muted); padding:0 6px;" onclick="takeAction(${item.id}, 'mark_justified')" title="Mark as Justified">Justify</button>
                 </div>
             </td>
