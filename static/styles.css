@@ -223,6 +223,7 @@ h1, h2, h3, h4, h5, h6, .brand-text {
   transition: all 0.2s ease; white-space: nowrap;
   position: relative; overflow: hidden;
   letter-spacing: 0.01em;
+  color: var(--text-base);
 }
 .btn-primary {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
