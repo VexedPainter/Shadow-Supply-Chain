@@ -2151,6 +2151,8 @@ def pdf_bulk_procurement(user: str = Depends(get_current_user), db: Session = De
 @app.get("/api/pdf/{po_id}")
 def pdf_single_po_route(po_id: str, user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     """Download single PO as PDF - called by frontend per-row PDF button."""
+    if po_id == "dashboard-report":
+        return pdf_dashboard_report(user=user, db=db)
     from database import Procurement
     po = db.query(Procurement).filter(Procurement.id == po_id).first()
     if not po: raise HTTPException(status_code=404, detail="PO not found")
