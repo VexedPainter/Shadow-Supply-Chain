@@ -4919,7 +4919,20 @@ async def sync_inventory_iot(
 
     item = db.query(InventoryItem).filter(InventoryItem.item_id == item_id).first()
     if not item:
-        raise HTTPException(status_code=404, detail=f"Item '{item_id}' not registered")
+        # Auto-register missing items dynamically, referencing base Inventory if possible
+        from database import Inventory
+        base_item = db.query(Inventory).filter((Inventory.sku == item_id) | (Inventory.id == item_id)).first()
+        
+        item = InventoryItem(
+            item_id=item_id,
+            name=base_item.name if base_item else f"Part {item_id}",
+            quantity=0,
+            reorder_point=base_item.reorder_level if base_item and base_item.reorder_level else 10,
+            reorder_qty=50,
+            location=payload.get("location") or (base_item.location if base_item else "Warehouse A")
+        )
+        db.add(item)
+        db.flush()
 
     prev_qty      = item.quantity
     item.quantity = float(payload.get("current_qty", item.quantity))
