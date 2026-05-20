@@ -1248,6 +1248,38 @@ body, .sidebar, .main, .panel, .card, .stat-card, .header, .panel-header, .insig
   
   --brand-gradient-vertical: linear-gradient(180deg, #000000 0%, #050505 100%);
   --brand-gradient: linear-gradient(135deg, #020202 0%, #0a0a0a 100%);
+
+  /* High Contrast Overrides for Dark Mode */
+  --text-muted: #94a3b8;
+  --text-subtle: #cbd5e1;
+  --brand-primary: #38bdf8;
+  
+  --accent-blue: #60a5fa;
+  --accent-emerald: #34d399;
+  --accent-amber: #fbbf24;
+  --accent-red: #f87171;
+  
+  --status-active-bg: rgba(52, 211, 153, 0.15);
+  --status-active-text: #6ee7b7;
+  --status-delayed-bg: rgba(251, 191, 36, 0.15);
+  --status-delayed-text: #fcd34d;
+  --status-critical-bg: rgba(248, 113, 113, 0.15);
+  --status-critical-text: #fca5a5;
+}
+
+[data-theme="dark"] .btn-primary {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  color: #ffffff;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+}
+[data-theme="dark"] .btn-ghost {
+  color: var(--text-base);
+  border: 1px solid var(--border-medium);
+  background: rgba(255, 255, 255, 0.05);
+}
+[data-theme="dark"] .badge {
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* ─── Animated Theme Toggle ───────────────────── */
