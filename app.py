@@ -1777,8 +1777,11 @@ def download_shadow_report_alias(user: str = Depends(get_current_user), db: Sess
 
 @app.get("/api/export/{type}")
 @app.get("/api/export/csv/{type}")
-def export_csv_data(type: str, user: str = Depends(get_current_user), db: Session = Depends(get_db)):
+def export_csv_data(type: str, request: Request, user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     """Dynamic CSV Ledger Generation with professional formatting, data validation, and clear structure."""
+    # Delegate to specialized handlers that would otherwise be shadowed by this generic route
+    if type == "comprehensive":
+        return export_comprehensive(request=request, user=user, db=db)
     import io, csv
     output = io.StringIO()
     writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
