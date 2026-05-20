@@ -68,10 +68,10 @@ class VendorRingDetector:
 
     # Edge weight threshold: two vendors must share ≥ this many employees
     # or departments to be considered linked
-    LINK_THRESHOLD = 1
+    LINK_THRESHOLD = 2    # ≥2 shared employees required — prevents coincidental single-link matches
 
     # Minimum shadow count per vendor to be included in ring analysis
-    MIN_SHADOW_COUNT = 1
+    MIN_SHADOW_COUNT = 3  # ≥3 shadow events per vendor — statistically grounded threshold
 
     # Risk weight multipliers for ring scoring
     PAYMENT_RISK_WEIGHTS = {

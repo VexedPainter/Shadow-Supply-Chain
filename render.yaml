@@ -13,3 +13,30 @@ services:
         sync: false
       - key: COHERE_API_KEY
         sync: false
+      # Authentication — must be set before deployment
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+      # CORS — set to your deployment URL in production
+      - key: ALLOWED_ORIGINS
+        value: https://shadow-supply-chain.onrender.com
+      # IoT device pre-shared key — change before production deployment
+      - key: IOT_API_KEY
+        sync: false
+      # Field-level encryption key (Fernet) — generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      - key: FIELD_ENCRYPTION_KEY
+        sync: false
+      # Alert configuration (optional — silently skipped if not set)
+      - key: SLACK_WEBHOOK_URL
+        sync: false
+      - key: ALERT_EMAIL_USER
+        sync: false
+      - key: ALERT_EMAIL_PASS
+        sync: false
+      - key: ALERT_EMAIL_TO
+        sync: false
+      - key: ALERT_SMTP_HOST
+        value: smtp.gmail.com
+      - key: ALERT_SMTP_PORT
+        value: "587"

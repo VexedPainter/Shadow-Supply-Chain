@@ -1,5 +1,5 @@
 /**
- * ShadowSync - Kinetic Ledger Frontend v3.0
+ * ShadowSync - Kinetic Ledger Frontend v7.0
 
  * Omni-Category Supply Chain Intelligence Dashboard
  * Handles: WebSocket, Charts, CRUD, PDF/CSV export, feedback, side-panel
@@ -59,6 +59,13 @@ function fetchAllData() {
     fetchOpsInsights();
     fetchPriorityQueue(); // Also fetch for urgent actions panel
     fetchTrends(); // Trend insights dashboard
+    
+    // Auto-refresh additional section data
+    fetchDeptRisk();
+    fetchESGReport();
+    fetchAutoPODrafts();
+    fetchSupplierNetwork();
+    fetchIoTInventory();
 }
 
 async function apiFetch(url, options = {}) {
@@ -1884,6 +1891,11 @@ async function sendAIMessage() {
             const response = data.response || 'No response received.';
             addAIMessage(response, 'assistant');
             aiState.history.push({ role: 'assistant', content: response });
+            // Surface silent API key failure as a visible banner
+            if (response.includes('API key') || response.includes('not available') || data.status === 'error') {
+                const banner = document.getElementById('api-banner');
+                if (banner) banner.style.display = 'block';
+            }
         }
     } catch (e) {
         removeTypingIndicator();

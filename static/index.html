@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="ShadowSync - Omni-Category Supply Chain Intelligence & Analytics Platform">
-    <title>ShadowSync · Supply Chain Command Center</title>
+    <title>ShadowSync · AI-Powered Shadow Procurement Detection</title>
 
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234F46E5'/><path d='M30 30h40v10H30zM30 45h40v10H30zM30 60h40v10H30z' fill='white'/></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,13 +14,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
+
+<!-- ── API Key Warning Banner ───────────────────────────────── -->
+<div id="api-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#7c3aed;color:#fff;font-size:13px;padding:8px 20px;text-align:center;letter-spacing:0.01em;">
+  ⚠️ AI Copilot is running in demo mode — API keys not configured. See <strong>README Section 14</strong> to enable live AI responses.
+  <button onclick="document.getElementById('api-banner').style.display='none'" style="margin-left:16px;background:rgba(255,255,255,0.2);border:none;color:#fff;padding:2px 10px;border-radius:4px;cursor:pointer;">Dismiss</button>
+</div>
 <div class="app">
 
     <!-- === Sidebar === -->
     <aside class="sidebar">
         <div class="logo">
-            <div class="logo-icon" style="background: var(--brand-secondary); border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: white;">NI</div>
-            <h1>Nexus Integrity<br><span style="font-size:11px; opacity: 0.7; letter-spacing: 0.1em; text-transform: uppercase;">Kinetic Ledger</span></h1>
+            <div class="logo-icon" style="background: var(--brand-secondary); border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: white;">SS</div>
+            <h1>ShadowSync<br><span style="font-size:11px; opacity: 0.7; letter-spacing: 0.1em; text-transform: uppercase;">Procurement Intelligence</span></h1>
         </div>
         <nav class="nav">
             <div class="nav-item active" onclick="switchTab('overview')">
@@ -95,7 +101,7 @@
 
         <div class="sidebar-footer">
 
-            ShadowSync · Kinetic Ledger v3.0
+            ShadowSync · AI-Powered Shadow Procurement Detection v7.0
 
         </div>
     </aside>

@@ -56,7 +56,7 @@ def _init_cohere():
 
 
 # ─── System Prompt ─────────────────────────────────
-SYSTEM_PROMPT = """You are Nexus AI, the intelligent supply chain copilot for the Shadow Supply Chain Detection System.
+SYSTEM_PROMPT = """You are ShadowSync AI, the intelligent supply chain copilot for the ShadowSync Shadow Procurement Detection Platform.
 
 Your role:
 - Analyze shadow procurement patterns and explain risks

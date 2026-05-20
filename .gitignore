@@ -53,5 +53,3 @@ verify_*.py
 Thumbs.db
 
 # ─── Misc ─────────────────────────────────────
-FIXES_APPLIED.md
-migrate_db.py
