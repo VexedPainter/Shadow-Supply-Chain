@@ -1173,10 +1173,10 @@ function renderVendorTable(vendors) {
             </td>
             <td>${v.approved ? '<span style="color:var(--accent-emerald)">✓ Yes</span>' : '<span style="color:var(--accent-red)">✕ No</span>'}</td>
             <td>
-                <button class="btn btn-sm btn-outline" onclick="uploadContract('${escapeHtml(v.name || '')}')">📄 Upload MSA</button>
+                <button class="btn btn-sm btn-outline" onclick="uploadContract(${v.id})">📄 Upload MSA</button>
             </td>
             <td>
-                <button class="btn btn-sm btn-outline" onclick="viewVendorCompliance('${escapeHtml(v.name || '')}')">✅ Compliance</button>
+                <button class="btn btn-sm btn-outline" onclick="viewVendorCompliance(${v.id})">✅ Compliance</button>
             </td>
         </tr>`;
     }).join('');
