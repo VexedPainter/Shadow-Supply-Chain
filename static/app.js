@@ -1646,6 +1646,9 @@ async function fetchTrends() {
 
         // Render the YTD Trend chart in the Trend Insights panel
         renderTrendChart(data);
+        
+        // Render the metrics (Top Vendor, This Week counts, etc)
+        renderTrends(data);
 
         const timestamp = document.getElementById('trend-updated');
         if (timestamp) timestamp.textContent = `Last sync: ${new Date().toLocaleTimeString()}`;
