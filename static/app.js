@@ -2940,10 +2940,21 @@ async function fetchSupplierNetwork() {
 // -------------------------------------------------------------
 
 function uploadContract(vendorId) {
+    if (!vendorId) {
+        showToast('Vendor ID missing. Please refresh the page.', 'error');
+        console.error('[uploadContract] Called with empty vendorId');
+        return;
+    }
     _contractUploadVendorId = vendorId;
-    document.getElementById('contract-text-input').value = '';
+    const textArea = document.getElementById('contract-text-input');
+    if (textArea) textArea.value = '';
     const modal = document.getElementById('contract-modal');
-    modal.style.display = 'flex';
+    if (modal) {
+        modal.style.display = 'flex';
+    } else {
+        console.error('[uploadContract] #contract-modal not found in DOM');
+        showToast('Modal not found. Please hard refresh (Ctrl+Shift+R).', 'error');
+    }
 }
 
 function closeContractModal() {
@@ -2995,7 +3006,9 @@ async function checkCompliance(txnId, vendorId) {
     const modal    = document.getElementById('compliance-modal');
     if (!resultEl || !modal) return;
 
-    resultEl.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Checking compliance...</p>';
+    // Ensure result body is visible
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = '<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px;">⏳ Checking compliance...</p>';
     modal.style.display = 'flex';
 
     try {
@@ -3052,7 +3065,8 @@ async function checkCompliance(txnId, vendorId) {
             Warning: ${escapeHtml(data.error)}
         </p>` : ''}
 
-        <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; margin-top:16px;">
+            <button class="btn btn-ghost" onclick="viewVendorCompliance(_complianceCheckVendorId)">← Check Another</button>
             <button class="btn btn-outline" onclick="closeComplianceModal()">Close</button>
         </div>`;
 
@@ -3063,17 +3077,66 @@ async function checkCompliance(txnId, vendorId) {
 }
 
 function closeComplianceModal() {
-    document.getElementById('compliance-modal').style.display = 'none';
+    const modal = document.getElementById('compliance-modal');
+    if (modal) modal.style.display = 'none';
+    _complianceCheckVendorId = null;
+    // Reset to input phase for next use
+    const inputPhase = document.getElementById('compliance-input-phase');
+    const resultBody = document.getElementById('compliance-result-body');
+    const txnInput   = document.getElementById('compliance-txn-input');
+    if (inputPhase) inputPhase.style.display = 'block';
+    if (resultBody) { resultBody.style.display = 'none'; resultBody.innerHTML = ''; }
+    if (txnInput)   txnInput.value = '';
 }
 
 function viewVendorCompliance(vendorId) {
-    // Called from vendor table — prompts for a txn ID to check against
-    const txnId = prompt("Enter Transaction ID to check against this vendor's contract:");
-    if (txnId && !isNaN(parseInt(txnId))) {
-        checkCompliance(parseInt(txnId), vendorId);
-    } else if (txnId !== null) {
-        showToast('Please enter a valid numeric Transaction ID.', 'warning');
+    if (!vendorId) {
+        showToast('Vendor ID not found. Please refresh and try again.', 'error');
+        return;
     }
+    _complianceCheckVendorId = vendorId;
+
+    // Reset modal to input phase
+    const inputPhase  = document.getElementById('compliance-input-phase');
+    const resultBody  = document.getElementById('compliance-result-body');
+    const txnInput    = document.getElementById('compliance-txn-input');
+    const vendorLabel = document.getElementById('compliance-vendor-label');
+
+    if (inputPhase) inputPhase.style.display = 'block';
+    if (resultBody) { resultBody.style.display = 'none'; resultBody.innerHTML = ''; }
+    if (txnInput)   txnInput.value = '';
+    if (vendorLabel) vendorLabel.textContent = `Vendor ID: ${vendorId} — enter a transaction ID below`;
+
+    const modal = document.getElementById('compliance-modal');
+    if (modal) modal.style.display = 'flex';
+
+    // Focus the input after display
+    setTimeout(() => { if (txnInput) txnInput.focus(); }, 100);
+}
+
+async function runComplianceCheck() {
+    const txnInput = document.getElementById('compliance-txn-input');
+    const txnId    = txnInput ? txnInput.value.trim() : '';
+
+    if (!txnId || isNaN(parseInt(txnId))) {
+        showToast('Please enter a valid numeric Transaction ID.', 'warning');
+        return;
+    }
+    if (!_complianceCheckVendorId) {
+        showToast('Vendor not selected. Please close and try again.', 'error');
+        return;
+    }
+
+    // Switch to results phase
+    const inputPhase = document.getElementById('compliance-input-phase');
+    const resultBody = document.getElementById('compliance-result-body');
+    if (inputPhase) inputPhase.style.display = 'none';
+    if (resultBody) {
+        resultBody.style.display = 'block';
+        resultBody.innerHTML = '<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px;">⏳ Checking compliance against contract terms...</p>';
+    }
+
+    await checkCompliance(parseInt(txnId), _complianceCheckVendorId);
 }
 
 // -------------------------------------------------------------

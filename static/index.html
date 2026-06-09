@@ -999,14 +999,34 @@
 
 <!-- === Compliance result modal === -->
 <div id="compliance-modal" style="display:none; position:fixed; inset:0;
-     background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
-    <div style="background:var(--bg-card); border-radius:12px; padding:24px;
-                width:90%; max-width:500px; border: 1px solid var(--border-medium);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-            <h3 style="margin:0;">Contract Compliance Result</h3>
-            <button onclick="closeComplianceModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted);">×</button>
+     background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card); border-radius:16px; padding:28px;
+                width:90%; max-width:520px; border: 1px solid var(--border-medium);
+                box-shadow: 0 20px 60px rgba(0,0,0,0.4);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h3 style="margin:0; font-size:17px;">✅ Contract Compliance Check</h3>
+            <button onclick="closeComplianceModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-muted); line-height:1;">×</button>
         </div>
-        <div id="compliance-result-body"></div>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:16px;" id="compliance-vendor-label">Checking vendor contract compliance</p>
+
+        <!-- TXN ID input phase -->
+        <div id="compliance-input-phase">
+            <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Transaction ID to check:</label>
+            <div style="display:flex; gap:8px;">
+                <input type="number" id="compliance-txn-input"
+                       placeholder="e.g. 42"
+                       style="flex:1; padding:9px 12px; border-radius:8px;
+                              border:1px solid var(--border-medium);
+                              background:var(--bg-region); color:var(--text-base);
+                              font-size:13px; outline:none;"
+                       onkeydown="if(event.key==='Enter') runComplianceCheck()">
+                <button class="btn btn-primary" onclick="runComplianceCheck()" style="white-space:nowrap;">Run Check</button>
+            </div>
+            <p style="font-size:11px; color:var(--text-subtle); margin-top:8px;">Enter the numeric ID of the transaction you want to validate against this vendor's MSA contract.</p>
+        </div>
+
+        <!-- Results phase -->
+        <div id="compliance-result-body" style="display:none;"></div>
     </div>
 </div>
 
